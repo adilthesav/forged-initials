@@ -182,11 +182,11 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
         </button>
       </div>
 
-      {/* Divider */}
-      <div className="mx-6" style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(201,168,76,0.25),transparent)' }} />
+      {/* Divider — desktop only */}
+      <div className="hidden md:block mx-6" style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(201,168,76,0.25),transparent)' }} />
 
-      {/* Nav tabs */}
-      <div className="overflow-x-auto no-scrollbar">
+      {/* Nav tabs — desktop only */}
+      <div className="hidden md:block overflow-x-auto no-scrollbar">
         <div
           ref={navRef}
           style={{ position: 'relative', display: 'flex', alignItems: 'center',

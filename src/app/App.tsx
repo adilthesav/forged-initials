@@ -21,6 +21,7 @@ import { BlogPage } from './components/BlogPage';
 import { SEOHead, SEOPresets } from './components/SEOHead';
 import { SchemaMarkup, SchemaTypes } from './components/SchemaMarkup';
 import { MobileFloatingNav } from './components/MobileFloatingNav';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { ConsoleDeploymentGuide } from './components/ConsoleDeploymentGuide';
 import { DeploymentBanner } from './components/DeploymentBanner';
 import { usePerformanceOptimization } from './hooks/usePerformanceOptimization';
@@ -198,6 +199,10 @@ export default function App() {
       </main>
       
       {currentPage === 'home' && <MobileFloatingNav />}
+
+      {currentPage !== 'success' && currentPage !== 'cancel' && (
+        <MobileBottomNav currentPage={currentPage} onNavigate={handleNavigate} />
+      )}
       
       {currentPage !== 'test' && currentPage !== 'email' && currentPage !== 'success' && currentPage !== 'cancel' && (
         <Footer onNavigate={handleNavigate} />
