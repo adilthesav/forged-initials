@@ -1,0 +1,11 @@
+--- a/supabase/functions/server/notifications.tsx
++++ b/supabase/functions/server/notifications.tsx
+@@ -165,7 +165,7 @@
+         },
+         {
+           name: '💰 Order Summary:',
+-          value: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n\\n${itemizedPricing ? `Letters: $${itemizedPricing.lettersSubtotal.toFixed(2)}\\nHardware: $${itemizedPricing.hardwareTotal.toFixed(2)}\\nAssembly: $${itemizedPricing.assemblyFee.toFixed(2)}\\nShipping: $${itemizedPricing.shipping.toFixed(2)}\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n**TOTAL: $${itemizedPricing.total.toFixed(2)}**` : `**TOTAL: $${data.amount.toFixed(2)}**`}`,
++          value: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n\\n${itemizedPricing ? `Letters: $${(itemizedPricing.lettersSubtotal || 0).toFixed(2)}\\nHardware: $${(itemizedPricing.hardwareTotal || 0).toFixed(2)}\\nAssembly: $${(itemizedPricing.assemblyFee || 0).toFixed(2)}\\nShipping: $${(itemizedPricing.shipping || 10).toFixed(2)}\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n**TOTAL: $${(itemizedPricing.total || data.amount || 0).toFixed(2)}**` : `**TOTAL: $${(data.amount || 0).toFixed(2)}**`}`,
+           inline: false,
+         },
+       ],

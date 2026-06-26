@@ -1,0 +1,240 @@
+/* Mobile Performance Optimizations */
+
+/* Smooth scrolling with reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* GPU acceleration for smoother animations */
+@media (max-width: 640px) {
+  .transform,
+  [class*="translate"],
+  [class*="scale"],
+  [class*="rotate"] {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+}
+
+/* Optimize touch interactions */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Better mobile text selection */
+body {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Optimize scrolling performance */
+.scroll-optimized {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Improve form input on mobile */
+input,
+textarea,
+select {
+  font-size: 16px; /* Prevents zoom on iOS */
+}
+
+/* Better tap targets on mobile */
+@media (max-width: 640px) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Optimize backdrop blur for performance */
+@supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
+  .backdrop-blur-sm,
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Reduce animations on low-end devices */
+@media (prefers-reduced-motion: no-preference) and (max-width: 640px) {
+  .animate-pulse {
+    animation-duration: 3s;
+  }
+}
+
+/* Improve image loading performance */
+img {
+  content-visibility: auto;
+}
+
+/* Optimize long content rendering */
+.long-content {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Better mobile focus states */
+@media (max-width: 640px) {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+/* Prevent layout shift on mobile keyboard */
+@media (max-width: 640px) {
+  .form-container {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Optimize mobile scroll performance */
+.scroll-container {
+  will-change: scroll-position;
+  scroll-behavior: smooth;
+}
+
+/* Better mobile modal/sheet performance */
+[data-state="open"] {
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-state="closed"] {
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Optimize card hover effects on mobile */
+@media (max-width: 640px) {
+  .group:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease-out;
+  }
+}
+
+/* Better mobile spacing */
+@media (max-width: 640px) {
+  /* Ensure proper padding for safe areas (notches) */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Sticky header accounting for safe area */
+  header {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Optimize font rendering on mobile */
+@media (max-width: 640px) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Prevent horizontal scroll issues */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Better mobile button sizing */
+@media (max-width: 640px) {
+  button,
+  [role="button"],
+  a[href] {
+    min-height: 44px;
+  }
+
+  /* Larger input fields on mobile for easier interaction */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    min-height: 44px;
+    font-size: 16px !important; /* Prevent iOS zoom */
+  }
+}
+
+/* Optimize loading states */
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.15) 50%,
+    rgba(0, 0, 0, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Improve sheet/drawer animations on mobile */
+@media (max-width: 640px) {
+  [data-slot="sheet-content"] {
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+/* Better mobile card performance */
+@media (max-width: 640px) {
+  .card {
+    will-change: auto;
+  }
+
+  .card:active {
+    will-change: transform;
+  }
+}
+
+/* Optimize viewport height for mobile browsers */
+@supports (-webkit-touch-callout: none) {
+  /* iOS specific */
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Better mobile form validation */
+@media (max-width: 640px) {
+  input:invalid:not(:placeholder-shown) {
+    border-color: rgb(239 68 68 / 0.5);
+  }
+
+  input:valid:not(:placeholder-shown) {
+    border-color: rgb(34 197 94 / 0.5);
+  }
+}

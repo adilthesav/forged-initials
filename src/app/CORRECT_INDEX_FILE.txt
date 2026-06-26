@@ -1,0 +1,15 @@
+INSTRUCTIONS:
+============
+This file contains the CORRECT index.ts code with Discord endpoints.
+
+TO UPDATE YOUR LOCAL FILE:
+1. Copy ALL the code below (starting from "import { Hono }" to "Deno.serve(app.fetch);")
+2. In your terminal, run: nano /Users/adilali/Documents/webcontents/web\ files/forged-initials-site/supabase/functions/server/index.ts
+3. Delete all existing content (Ctrl+K repeatedly)
+4. Paste the code below
+5. Save: Ctrl+O, then Enter, then Ctrl+X
+6. Deploy: cd .. && supabase functions deploy server
+
+====================
+CODE STARTS BELOW:
+====================

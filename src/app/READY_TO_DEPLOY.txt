@@ -1,0 +1,75 @@
+========================================
+🚀 SUPABASE DASHBOARD DEPLOYMENT GUIDE
+========================================
+
+STEP 1: Open Supabase Dashboard
+--------------------------------
+URL: https://supabase.com/dashboard/project/vpxuizymtmcnsgmpnhel/functions/server
+
+STEP 2: Click "Edit Function"
+--------------------------------
+You'll see a code editor
+
+STEP 3: Copy ALL code from this file:
+--------------------------------
+File location: /supabase/functions/server/index.tsx
+
+OR use the file manager in your terminal:
+cd /path/to/your/project
+cat supabase/functions/server/index.tsx
+
+STEP 4: Select ALL existing code in the dashboard
+--------------------------------
+CMD+A (Mac) or CTRL+A (Windows)
+
+STEP 5: Paste the NEW code
+--------------------------------
+CMD+V (Mac) or CTRL+V (Windows)
+
+STEP 6: Click "Deploy"
+--------------------------------
+Wait 30 seconds for deployment
+
+STEP 7: Test immediately
+--------------------------------
+Open new tab: https://vpxuizymtmcnsgmpnhel.supabase.co/functions/v1/server/order/test
+
+Expected: "success": true
+
+STEP 8: Check Discord
+--------------------------------
+You should see an ORANGE test order appear!
+
+========================================
+✅ VERIFICATION
+========================================
+
+If you see the orange test order in Discord, YOU'RE DONE! 🎉
+
+Next test with real order:
+1. Go to your website
+2. Add letters to cart
+3. Pay with Cash App
+4. Click "I've sent payment"
+5. Check Discord for GREEN order!
+
+========================================
+🚨 TROUBLESHOOTING
+========================================
+
+"Error deploying":
+- Check you copied ALL the code
+- Make sure no syntax errors
+- Try deploy again
+
+"No Discord notification":
+- Check DISCORD_WEBHOOK_URL is set in Supabase
+- Go to: Settings → Edge Functions → Secrets
+- Verify DISCORD_WEBHOOK_URL exists
+
+"Test endpoint fails":
+- Wait 1 minute after deploy
+- Try again
+- Check function logs in dashboard
+
+========================================

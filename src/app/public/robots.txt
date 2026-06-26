@@ -1,0 +1,21 @@
+# robots.txt for Forged Initials
+# This file tells search engines which pages to crawl and which to avoid
+
+# Allow all search engines to crawl the site
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://forged-initials.com/sitemap.xml
+
+# Don't index testing and admin pages
+Disallow: /test
+Disallow: /email
+Disallow: /discord-test
+Disallow: /seo-audit
+
+# Sitemap location (helps search engines find all pages)
+Sitemap: https://forgedinitials.com/sitemap.xml
+
+# Crawl delay (optional - prevents overwhelming the server)
+# Crawl-delay: 10

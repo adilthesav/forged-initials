@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "hono": "jsr:@hono/hono@4",
+    "hono/": "jsr:@hono/hono@4/"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
+}

@@ -1,0 +1,309 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const DISCORD_WEBHOOK = Deno.env.get("DISCORD_WEBHOOK_URL");
+
+const LETTER_PRICE = { XS: 2.0, S: 2.5, M: 3.0, L: 4.0, XL: 5.0 };
+const HARDWARE_PRICE = {
+  bail: { XS: 1.50, S: 2.00, M: 2.50, L: 3.00, XL: 3.50 },
+  prong: { XS: 1.25, S: 1.75, M: 2.25, L: 2.75, XL: 3.25 },
+  jump_ring: 0.50
+};
+const ASSEMBLY_FEE = { connected: 15, none: 0 };
+const SHIPPING_PRICE = 10;
+
+function money(n) {
+  return "$" + n.toFixed(2);
+}
+
+function toQty(q) {
+  const n = Number(q || 0);
+  return (Number.isFinite(n) && n > 0) ? n : 0;
+}
+
+function normSize(sz) {
+  const s = String(sz || "M").toUpperCase();
+  return (["XS","S","M","L","XL"].indexOf(s) >= 0) ? s : "M";
+}
+
+function calculatePricing(body) {
+  const letters = body.letters || [];
+  const bails = body.bails || [];
+  const prongs = body.prongs || [];
+  const jumpRings = toQty(body.jumpRings);
+  const pendantStyle = body.pendantStyle || "none";
+  
+  let lettersTotal = 0;
+  const letterLines = [];
+  
+  for (let i = 0; i < letters.length; i++) {
+    const it = letters[i];
+    const sz = normSize(it.size);
+    const qty = toQty(it.quantity);
+    const price = LETTER_PRICE[sz] || 3.0;
+    const subtotal = price * qty;
+    lettersTotal += subtotal;
+    letterLines.push({
+      letter: it.letter || "?",
+      size: sz,
+      quantity: qty,
+      unitPrice: price,
+      subtotal: subtotal
+    });
+  }
+  
+  let hwTotal = 0;
+  const hwLines = [];
+  
+  for (let i = 0; i < bails.length; i++) {
+    const b = bails[i];
+    const sz = normSize(b.size);
+    const qty = toQty(b.quantity);
+    const price = HARDWARE_PRICE.bail[sz] || 2.5;
+    const subtotal = price * qty;
+    hwTotal += subtotal;
+    hwLines.push({
+      type: "Bail",
+      size: sz,
+      quantity: qty,
+      unitPrice: price,
+      subtotal: subtotal
+    });
+  }
+  
+  for (let i = 0; i < prongs.length; i++) {
+    const p = prongs[i];
+    const sz = normSize(p.size);
+    const qty = toQty(p.quantity);
+    const price = HARDWARE_PRICE.prong[sz] || 2.25;
+    const subtotal = price * qty;
+    hwTotal += subtotal;
+    hwLines.push({
+      type: "Prong",
+      size: sz,
+      quantity: qty,
+      unitPrice: price,
+      subtotal: subtotal
+    });
+  }
+  
+  if (jumpRings > 0) {
+    const jrPrice = HARDWARE_PRICE.jump_ring;
+    const jrSubtotal = jrPrice * jumpRings;
+    hwTotal += jrSubtotal;
+    hwLines.push({
+      type: "Jump Ring",
+      size: "Standard",
+      quantity: jumpRings,
+      unitPrice: jrPrice,
+      subtotal: jrSubtotal
+    });
+  }
+  
+  const assembly = ASSEMBLY_FEE[pendantStyle] || 0;
+  const total = lettersTotal + hwTotal + assembly + SHIPPING_PRICE;
+  
+  return {
+    letterLines: letterLines,
+    lettersTotal: lettersTotal,
+    hwLines: hwLines,
+    hardwareTotal: hwTotal,
+    assembly: assembly,
+    shipping: SHIPPING_PRICE,
+    total: total
+  };
+}
+
+async function notifyDiscord(order, priced, isTest) {
+  if (!DISCORD_WEBHOOK) {
+    console.log("No Discord webhook configured");
+    return;
+  }
+  
+  let letterText = "";
+  for (let i = 0; i < priced.letterLines.length; i++) {
+    const ln = priced.letterLines[i];
+    letterText += ln.quantity + "x " + ln.letter + " (" + ln.size + ") @ " + money(ln.unitPrice) + " = " + money(ln.subtotal) + "\n";
+  }
+  
+  let hwText = "";
+  for (let i = 0; i < priced.hwLines.length; i++) {
+    const hw = priced.hwLines[i];
+    hwText += hw.quantity + "x " + hw.type + " (" + hw.size + ") @ " + money(hw.unitPrice) + " = " + money(hw.subtotal) + "\n";
+  }
+  
+  const fields = [
+    { name: "👤 Customer", value: order.customerName, inline: true },
+    { name: "📧 Email", value: order.email, inline: true },
+    { name: "📍 Address", value: order.addressLine1 + "\n" + order.city + ", " + order.stateOrProvinceCode + " " + order.postalCode, inline: false }
+  ];
+  
+  if (order.phoneNumber) {
+    fields.push({ name: "📱 Phone", value: order.phoneNumber, inline: true });
+  }
+  
+  if (letterText) {
+    fields.push({ name: "💎 Letters", value: letterText, inline: false });
+  }
+  
+  if (hwText) {
+    fields.push({ name: "🔩 Hardware", value: hwText, inline: false });
+  }
+  
+  fields.push(
+    { name: "💰 Letters Total", value: money(priced.lettersTotal), inline: true },
+    { name: "🔧 Hardware Total", value: money(priced.hardwareTotal), inline: true },
+    { name: "⚙️ Assembly", value: money(priced.assembly), inline: true },
+    { name: "📦 Shipping", value: money(priced.shipping), inline: true },
+    { name: "✨ TOTAL", value: money(priced.total), inline: true }
+  );
+  
+  if (order.details) {
+    fields.push({ name: "📝 Notes", value: order.details, inline: false });
+  }
+  
+  const titlePrefix = isTest ? "🧪 TEST ORDER: " : "🎉 NEW ORDER: ";
+  const color = isTest ? 0xFFA500 : 0x00FF00;
+  
+  const embed = {
+    title: titlePrefix + order.orderId,
+    color: color,
+    fields: fields,
+    timestamp: new Date().toISOString(),
+    footer: {
+      text: isTest ? "This is a test order" : "Forged Initials - New Order"
+    }
+  };
+  
+  await fetch(DISCORD_WEBHOOK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ embeds: [embed] })
+  });
+}
+
+serve(async (req) => {
+  const url = new URL(req.url);
+  const path = url.pathname;
+  
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      }
+    });
+  }
+  
+  if (path.includes("/order/test")) {
+    try {
+      const testOrder = {
+        orderId: "TEST-" + Date.now(),
+        customerName: "Adil",
+        email: "adilthesav@gmail.com",
+        addressLine1: "16006 Creasted Green Dr",
+        city: "Houston",
+        stateOrProvinceCode: "TX",
+        postalCode: "77082",
+        phoneNumber: "832-352-8778"
+      };
+      
+      const testBody = {
+        letters: [
+          { letter: "A", size: "M", quantity: 2 },
+          { letter: "D", size: "M", quantity: 1 },
+          { letter: "I", size: "M", quantity: 1 },
+          { letter: "L", size: "M", quantity: 1 }
+        ],
+        bails: [{ size: "M", quantity: 2 }],
+        prongs: [],
+        jumpRings: 0,
+        pendantStyle: "connected"
+      };
+      
+      const priced = calculatePricing(testBody);
+      await notifyDiscord(testOrder, priced, true);
+      
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          test: true, 
+          message: "Test order sent to Discord!",
+          orderId: testOrder.orderId,
+          breakdown: {
+            letters: money(priced.lettersTotal),
+            hardware: money(priced.hardwareTotal),
+            assembly: money(priced.assembly),
+            shipping: money(priced.shipping),
+            total: money(priced.total)
+          }
+        }),
+        { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      );
+    } catch (err) {
+      console.error("Error:", err);
+      return new Response(
+        JSON.stringify({ error: err.message }),
+        { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      );
+    }
+  }
+  
+  if (path.includes("/order/submit") && req.method === "POST") {
+    try {
+      const body = await req.json();
+      
+      const order = {
+        orderId: "ORDER-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6).toUpperCase(),
+        customerName: body.customerName || "Unknown",
+        email: body.email || "No email provided",
+        addressLine1: body.addressLine1 || "",
+        city: body.city || "",
+        stateOrProvinceCode: body.stateOrProvinceCode || "",
+        postalCode: body.postalCode || "",
+        phoneNumber: body.phoneNumber || "",
+        details: body.details || ""
+      };
+      
+      const orderBody = {
+        letters: body.letters || [],
+        bails: body.bails || [],
+        prongs: body.prongs || [],
+        jumpRings: body.jumpRings || 0,
+        pendantStyle: body.pendantStyle || "none"
+      };
+      
+      const priced = calculatePricing(orderBody);
+      await notifyDiscord(order, priced, false);
+      
+      console.log("Real order submitted:", order.orderId);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          orderId: order.orderId,
+          total: priced.total,
+          message: "Order submitted successfully! Check Discord for details."
+        }),
+        { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      );
+    } catch (err) {
+      console.error("Error submitting order:", err);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: err.message 
+        }),
+        { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      );
+    }
+  }
+  
+  return new Response(
+    JSON.stringify({ 
+      error: "Not found",
+      availablePaths: ["/order/test", "/order/submit"]
+    }),
+    { status: 404, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+  );
+});
