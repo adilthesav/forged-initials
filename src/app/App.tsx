@@ -25,7 +25,12 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { ConsoleDeploymentGuide } from './components/ConsoleDeploymentGuide';
 import { DeploymentBanner } from './components/DeploymentBanner';
 import { usePerformanceOptimization } from './hooks/usePerformanceOptimization';
+import { RouterProvider } from 'react-router';
+import { router } from './routes';
 
+export default function App() {
+  return <RouterProvider router={router} />;
+}
 // Forged Initials Main App Component
 // Build: 2025-11-09-fully-optimized
 export default function App() {
