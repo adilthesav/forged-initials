@@ -1,4 +1,3 @@
-Now go to github.com/adilthesav/forged-initials → src/app/components/About.tsx → pencil icon → Ctrl+A, delete, paste this:
 
 import { Card, CardContent } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
