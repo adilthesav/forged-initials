@@ -1,4 +1,5 @@
-import { Badge } from './ui/card';
+Now go to github.com/adilthesav/forged-initials → src/app/components/About.tsx → pencil icon → Ctrl+A, delete, paste this:
+
 import { Card, CardContent } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Sparkles, Package, Truck } from 'lucide-react';
@@ -47,19 +48,22 @@ export function About() {
               </div>
               <CardContent className="p-6 md:p-12 flex flex-col justify-center">
                 <div className="mb-4">
-                  <h3 className="text-2xl md:text-3xl mb-1">Ahmed Kassim</h3>
-                  <p className="text-sm md:text-base font-semibold mb-1" style={{ color: '#c9a84c' }}>Forged Initials</p>
-                  <p className="text-xs md:text-sm text-foreground/50">Brand founded &amp; built by Adil Ali</p>
+                  <h3 className="text-2xl md:text-3xl mb-1">About Forged Initials</h3>
+                  <p className="text-sm md:text-base font-semibold mb-1" style={{ color: '#c9a84c' }}>Family-Owned · Houston, Texas</p>
+                  <p className="text-xs md:text-sm text-foreground/50">Founded by Adil Ali · Operated under Ahmed Kassim</p>
                 </div>
                 <div className="space-y-3 md:space-y-4 text-sm md:text-base text-foreground/80">
                   <p>
-                    Forged Initials is a family brand built on a love for detail — and a belief that a single letter can carry meaning, memory, and identity.
+                    Forged Initials is a family-owned jewelry brand inspired by the belief that a single letter can represent identity, memories, and the people who matter most.
                   </p>
                   <p>
-                    The brand runs under the name of my father, Ahmed Kassim. I'm Adil Ali — I created this brand, designed every piece, built this website, and manage everything behind the scenes. Every letter is hand-forged to order in 925 sterling silver with care and precision.
+                    Founded by Adil Ali and operated as a family business under Ahmed Kassim, every aspect of the brand — from product design and the online experience to customer service — is built around simplicity, authenticity, and attention to detail.
                   </p>
                   <p>
-                    We also offer quality sterling silver jewelry components for makers who want to create their own pieces. Every order is carefully packaged and shipped to Houston addresses.
+                    Our collection features personalized initial pendants crafted from genuine 925 sterling silver, designed to be timeless, versatile, and suitable for everyday wear. We also offer quality sterling silver components for artisans and makers who create their own pieces.
+                  </p>
+                  <p>
+                    Based in Houston, Texas, every order is carefully packaged and shipped with care. We're grateful for the opportunity to create pieces that become part of your story.
                   </p>
                 </div>
               </CardContent>
@@ -95,10 +99,10 @@ export function About() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end">
                 <div className="p-5 md:p-12 text-white">
                   <p className="text-lg md:text-2xl mb-2">
-                    "Every letter tells a story"
+                    "A single letter can represent everything that matters."
                   </p>
                   <p className="text-xs md:text-base text-white/80">
-                    — Ahmed Kassim &amp; Adil Ali, Forged Initials
+                    — Forged Initials, Houston Texas
                   </p>
                 </div>
               </div>
