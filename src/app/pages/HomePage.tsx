@@ -1,5 +1,6 @@
 import { Hero } from '../components/Hero';
 import { Features } from '../components/Features';
+import { ShopSection } from '../components/ShopSection';
 import { ProductShowcase } from '../components/ProductShowcase';
 import { SizeComparison } from '../components/SizeComparison';
 import { JewelryParts } from '../components/JewelryParts';
@@ -11,6 +12,7 @@ export function HomePage() {
     <>
       <Hero />
       <Features />
+      <ShopSection />
       <ProductShowcase />
       <SizeComparison />
       <JewelryParts />
