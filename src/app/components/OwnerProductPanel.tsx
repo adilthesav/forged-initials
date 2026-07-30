@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, Upload, Link } from 'lucide-react';
 
 interface Product {
   id?: string;
@@ -12,7 +12,12 @@ interface Product {
   active: boolean;
 }
 
-const BLANK: Product = { name: '', description: '', price_cents: 0, image_url: '', category: 'pendant', quantity_remaining: 1, active: true };
+const BLANK: Product = {
+  name: '', description: '', price_cents: 0,
+  image_url: '', category: 'pendant',
+  quantity_remaining: 1, active: true,
+};
+
 const ADMIN_TOKEN = 'forgedadmin2026';
 
 async function adminFetch(method: string, body?: object) {
@@ -24,24 +29,142 @@ async function adminFetch(method: string, body?: object) {
   return res.json();
 }
 
-function ProductForm({ initial, onSave, onCancel, saving }: { initial: Product; onSave: (p: Product) => void; onCancel: () => void; saving: boolean }) {
+async function uploadImage(file: File): Promise<string> {
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const res = await fetch('/.netlify/functions/upload-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': ADMIN_TOKEN },
+    body: JSON.stringify({ filename: file.name, contentType: file.type, base64 }),
+  });
+  const { url, error } = await res.json();
+  if (error) throw new Error(error);
+  return url;
+}
+
+function ImageUploader({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [tab, setTab] = useState<'upload' | 'url'>('upload');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      onChange(url);
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-stone-500 block">Product Image</label>
+
+      {/* Tab toggle */}
+      <div className="flex rounded-lg overflow-hidden border border-stone-200 w-fit">
+        <button
+          type="button"
+          onClick={() => setTab('upload')}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all"
+          style={tab === 'upload' ? { background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' } : { background: 'white', color: '#78716c' }}
+        >
+          <Upload className="w-3 h-3" /> Upload File
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('url')}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all"
+          style={tab === 'url' ? { background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' } : { background: 'white', color: '#78716c' }}
+        >
+          <Link className="w-3 h-3" /> Paste URL
+        </button>
+      </div>
+
+      {tab === 'upload' ? (
+        <div
+          onClick={() => !uploading && fileRef.current?.click()}
+          className="relative border-2 border-dashed border-stone-200 rounded-xl p-6 text-center cursor-pointer hover:border-amber-300 hover:bg-amber-50/30 transition-all"
+        >
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            className="hidden"
+          />
+          {uploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="w-6 h-6 text-amber-500 animate-spin" />
+              <p className="text-xs text-stone-500 font-medium">Uploading…</p>
+            </div>
+          ) : value ? (
+            <div className="flex flex-col items-center gap-2">
+              <img src={value} alt="preview" className="h-24 w-24 object-cover rounded-xl border border-stone-200 mx-auto" />
+              <p className="text-xs text-amber-600 font-semibold">Click to replace</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <Upload className="w-8 h-8 text-stone-300" />
+              <p className="text-xs text-stone-400 font-medium">Click to upload image</p>
+              <p className="text-[10px] text-stone-300">JPG, PNG, WEBP supported</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder="https://… paste a direct image link"
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          />
+          {value && (
+            <img src={value} alt="preview" className="h-20 w-20 object-cover rounded-lg border border-stone-200" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductForm({ initial, onSave, onCancel, saving }: {
+  initial: Product; onSave: (p: Product) => void; onCancel: () => void; saving: boolean;
+}) {
   const [form, setForm] = useState(initial);
   const set = (k: keyof Product, v: any) => setForm(f => ({ ...f, [k]: v }));
 
   return (
     <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
       <h3 className="font-bold text-stone-800 text-sm">{form.id ? 'Edit Product' : 'Add New Product'}</h3>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Product Name *</label>
-          <input value={form.name} onChange={e => set('name', e.target.value)}
+          <input
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
             placeholder="e.g. Gold Initial Ring — Letter A"
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          />
         </div>
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Category *</label>
-          <select value={form.category} onChange={e => set('category', e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400">
+          <select
+            value={form.category}
+            onChange={e => set('category', e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          >
             <option value="ring">Ring</option>
             <option value="pendant">Pendant</option>
             <option value="earring">Earring</option>
@@ -49,45 +172,67 @@ function ProductForm({ initial, onSave, onCancel, saving }: { initial: Product; 
           </select>
         </div>
       </div>
+
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">Description</label>
-        <textarea value={form.description} onChange={e => set('description', e.target.value)}
+        <textarea
+          value={form.description}
+          onChange={e => set('description', e.target.value)}
           placeholder="Describe the piece — size, style, material details…"
-          rows={2} className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 resize-none" />
+          rows={2}
+          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 resize-none"
+        />
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Price ($) *</label>
-          <input type="number" min="0" step="0.01"
+          <input
+            type="number" min="0" step="0.01"
             value={(form.price_cents / 100).toFixed(2)}
             onChange={e => set('price_cents', Math.round(parseFloat(e.target.value || '0') * 100))}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          />
         </div>
         <div>
-          <label className="text-xs font-semibold text-stone-500 mb-1 block">Qty in Stock *</label>
-          <input type="number" min="0" value={form.quantity_remaining}
+          <label className="text-xs font-semibold text-stone-500 mb-1 block">Quantity in Stock *</label>
+          <input
+            type="number" min="0"
+            value={form.quantity_remaining}
             onChange={e => set('quantity_remaining', parseInt(e.target.value || '0'))}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          />
         </div>
       </div>
-      <div>
-        <label className="text-xs font-semibold text-stone-500 mb-1 block">Image URL</label>
-        <input value={form.image_url} onChange={e => set('image_url', e.target.value)}
-          placeholder="https://… (paste a direct image link)"
-          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
-        {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 h-20 w-20 object-cover rounded-lg border border-stone-200" />}
-      </div>
+
+      <ImageUploader value={form.image_url} onChange={url => set('image_url', url)} />
+
       <div className="flex items-center gap-2">
-        <input type="checkbox" id="active-chk" checked={form.active} onChange={e => set('active', e.target.checked)} className="w-4 h-4 accent-amber-500" />
-        <label htmlFor="active-chk" className="text-xs font-semibold text-stone-600">Listed publicly (customers can see and buy this)</label>
+        <input
+          type="checkbox" id="active-toggle"
+          checked={form.active}
+          onChange={e => set('active', e.target.checked)}
+          className="w-4 h-4 accent-amber-500"
+        />
+        <label htmlFor="active-toggle" className="text-xs font-semibold text-stone-600">
+          Listed publicly (customers can see & buy this)
+        </label>
       </div>
+
       <div className="flex gap-2 pt-1">
-        <button onClick={() => onSave(form)} disabled={saving || !form.name || !form.price_cents}
+        <button
+          onClick={() => onSave(form)}
+          disabled={saving || !form.name || !form.price_cents}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
-          <Save className="w-3.5 h-3.5" />{saving ? 'Saving…' : 'Save Product'}
+          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}
+        >
+          <Save className="w-3.5 h-3.5" />
+          {saving ? 'Saving…' : 'Save Product'}
         </button>
-        <button onClick={onCancel} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-stone-100 text-stone-600 hover:bg-stone-200 transition-all">
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-stone-100 text-stone-600 hover:bg-stone-200 transition-all"
+        >
           <X className="w-3.5 h-3.5" /> Cancel
         </button>
       </div>
@@ -151,9 +296,11 @@ export function OwnerProductPanel() {
             <button onClick={load} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition-all" title="Refresh">
               <RefreshCw className="w-4 h-4 text-stone-500" />
             </button>
-            <button onClick={() => { setAdding(true); setEditing(null); }}
+            <button
+              onClick={() => { setAdding(true); setEditing(null); }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
+              style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}
+            >
               <Plus className="w-4 h-4" /> Add Product
             </button>
           </div>
@@ -167,7 +314,8 @@ export function OwnerProductPanel() {
 
         {loading && (
           <div className="text-center py-16 text-stone-400">
-            <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />Loading products…
+            <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />
+            Loading products…
           </div>
         )}
 
