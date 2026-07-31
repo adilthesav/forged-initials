@@ -1,21 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Home, Package, Info, HelpCircle, MessageCircle, Sparkles, ShoppingBag, Truck, BookOpen } from 'lucide-react';
+import { Home, Package, Info, HelpCircle, MessageCircle, Sparkles, ShoppingBag, BookOpen, ShoppingCart } from 'lucide-react';
 const logo = '/logo.png';
 
 interface HeaderProps {
-  currentPage: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog';
-  onNavigate: (page: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog') => void;
+  currentPage: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop';
+  onNavigate: (page: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop') => void;
 }
 
 const NAV_ITEMS = [
   { name: 'Home',          icon: Home,          sectionId: 'home' },
+  { name: 'Shop',          icon: ShoppingCart,  sectionId: null },
   { name: 'Gallery',       icon: Sparkles,      sectionId: 'gallery' },
   { name: 'Custom Orders', icon: ShoppingBag,   sectionId: 'custom-orders' },
   { name: 'Jewelry Parts', icon: Package,       sectionId: 'jewelry-parts' },
   { name: 'About',         icon: Info,          sectionId: 'about' },
   { name: 'Journal',       icon: BookOpen,      sectionId: null },
-  { name: 'Track Order',   icon: Truck,         sectionId: null },
   { name: 'FAQ',           icon: HelpCircle,    sectionId: null },
   { name: 'Contact',       icon: MessageCircle, sectionId: null },
 ];
@@ -25,8 +25,8 @@ const SECTION_ORDER = ['home', 'gallery', 'custom-orders', 'jewelry-parts', 'abo
 const PAGE_TAB: Record<string, string> = {
   contact: 'Contact',
   faq: 'FAQ',
-  track: 'Track Order',
   blog: 'Journal',
+  shop: 'Shop',
 };
 
 function scrollTop() {
@@ -43,7 +43,6 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
 
   const activeTab = currentPage !== 'home' ? (PAGE_TAB[currentPage] ?? 'Home') : scrollTab;
 
-  // Measure and animate pill to active tab
   useLayoutEffect(() => {
     const btn = btnRefs.current[activeTab];
     const nav = navRef.current;
@@ -53,7 +52,6 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
     setPillStyle({ left: btnRect.left - navLeft, width: btnRect.width });
   }, [activeTab]);
 
-  // Re-measure on resize
   useEffect(() => {
     const onResize = () => {
       const btn = btnRefs.current[activeTab];
@@ -67,42 +65,29 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
     return () => window.removeEventListener('resize', onResize);
   }, [activeTab]);
 
-  // Scroll spy via IntersectionObserver
   useEffect(() => {
     if (currentPage !== 'home') return;
-
-    // Track which sections are visible
     const visible = new Set<string>();
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(e => {
           if (e.isIntersecting) visible.add(e.target.id);
           else visible.delete(e.target.id);
         });
-
-        // Pick the topmost visible section
         for (const id of SECTION_ORDER) {
           if (visible.has(id)) {
             const item = NAV_ITEMS.find(n => n.sectionId === id);
             if (item) { setScrollTab(item.name); return; }
           }
         }
-        // Nothing visible = at very top
         setScrollTab('Home');
       },
-      {
-        // Trigger when section enters the middle band of the viewport
-        rootMargin: '-10% 0px -55% 0px',
-        threshold: 0,
-      }
+      { rootMargin: '-10% 0px -55% 0px', threshold: 0 }
     );
-
     SECTION_ORDER.forEach(id => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
-
     return () => observer.disconnect();
   }, [currentPage]);
 
@@ -110,17 +95,15 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
     if (currentPage === 'home') setScrollTab('Home');
   }, [currentPage]);
 
-  // Click handlers
   const scrollToId = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
   const handleClick = (name: string) => {
-    if (name === 'Contact')     { onNavigate('contact'); scrollTop(); return; }
-    if (name === 'FAQ')         { onNavigate('faq');     scrollTop(); return; }
-    if (name === 'Track Order') { onNavigate('track');   scrollTop(); return; }
-    if (name === 'Journal')     { onNavigate('blog');    scrollTop(); return; }
-    if (name === 'Home')        { onNavigate('home'); scrollTop(); setScrollTab('Home'); return; }
-
+    if (name === 'Contact') { onNavigate('contact'); scrollTop(); return; }
+    if (name === 'FAQ')     { onNavigate('faq');     scrollTop(); return; }
+    if (name === 'Journal') { onNavigate('blog');    scrollTop(); return; }
+    if (name === 'Shop')    { onNavigate('shop');    scrollTop(); return; }
+    if (name === 'Home')    { onNavigate('home'); scrollTop(); setScrollTab('Home'); return; }
     const item = NAV_ITEMS.find(n => n.name === name);
     if (!item?.sectionId) return;
     if (currentPage !== 'home') {
@@ -146,7 +129,6 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
         boxShadow: '0 2px 20px rgba(0,0,0,0.06)',
       }}
     >
-      {/* Logo + CTA */}
       <div className="container mx-auto px-4 sm:px-6 pt-2.5 pb-1.5 flex items-center justify-between">
         <div
           className="flex items-center gap-2.5 cursor-pointer group"
@@ -182,10 +164,8 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
         </button>
       </div>
 
-      {/* Divider — desktop only */}
       <div className="hidden md:block mx-6" style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(201,168,76,0.25),transparent)' }} />
 
-      {/* Nav tabs — desktop only */}
       <div className="hidden md:block overflow-x-auto no-scrollbar">
         <div
           ref={navRef}
@@ -193,40 +173,27 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
                    justifyContent: 'center', minWidth: '100%', width: 'max-content',
                    padding: '0 8px' }}
         >
-          {/* Single sliding pill — never unmounts, just moves */}
           <motion.span
             aria-hidden
             animate={{ left: pillStyle.left, width: pillStyle.width }}
             transition={{ type: 'spring', stiffness: 420, damping: 36 }}
             style={{
-              position: 'absolute',
-              top: 4,
-              bottom: 4,
-              borderRadius: 6,
+              position: 'absolute', top: 4, bottom: 4, borderRadius: 6,
               background: 'linear-gradient(135deg,rgba(201,168,76,0.2),rgba(232,201,106,0.12))',
               border: '1px solid rgba(201,168,76,0.25)',
               pointerEvents: 'none',
             }}
           />
-
-          {/* Single sliding underline */}
           <motion.span
             aria-hidden
-            animate={{
-              left: pillStyle.left + 8,
-              width: Math.max(0, pillStyle.width - 16),
-            }}
+            animate={{ left: pillStyle.left + 8, width: Math.max(0, pillStyle.width - 16) }}
             transition={{ type: 'spring', stiffness: 420, damping: 36 }}
             style={{
-              position: 'absolute',
-              bottom: 0,
-              height: 2,
-              borderRadius: 9999,
+              position: 'absolute', bottom: 0, height: 2, borderRadius: 9999,
               background: 'linear-gradient(90deg,#c9a84c,#e8c96a)',
               pointerEvents: 'none',
             }}
           />
-
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.name;
@@ -235,21 +202,28 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
                 key={item.name}
                 ref={el => { btnRefs.current[item.name] = el; }}
                 onClick={() => handleClick(item.name)}
-                style={{
+                style={item.name === 'Shop' && !active ? {
                   position: 'relative', zIndex: 1,
                   display: 'flex', alignItems: 'center', gap: 5,
-                  whiteSpace: 'nowrap',
-                  padding: '10px 12px',
+                  whiteSpace: 'nowrap', padding: '6px 14px',
+                  fontSize: 12, fontWeight: 700,
+                  border: '1.5px solid rgba(201,168,76,0.5)',
+                  background: 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(232,201,106,0.06))',
+                  cursor: 'pointer', color: '#8a6710', borderRadius: 20, flexShrink: 0,
+                  boxShadow: '0 1px 6px rgba(201,168,76,0.15)',
+                } : {
+                  position: 'relative', zIndex: 1,
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  whiteSpace: 'nowrap', padding: '10px 12px',
                   fontSize: 12, fontWeight: active ? 600 : 500,
                   border: 'none', background: 'transparent', cursor: 'pointer',
                   color: active ? '#8a6710' : 'rgba(30,20,5,0.45)',
-                  transition: 'color 0.2s ease',
-                  flexShrink: 0, borderRadius: 6,
+                  transition: 'color 0.2s ease', flexShrink: 0, borderRadius: 6,
                 }}
               >
                 <Icon style={{
                   width: 13, height: 13, flexShrink: 0,
-                  color: active ? '#c9a84c' : 'rgba(30,20,5,0.28)',
+                  color: item.name === 'Shop' ? '#c9a84c' : active ? '#c9a84c' : 'rgba(30,20,5,0.28)',
                   transition: 'color 0.2s ease',
                 }} />
                 {item.name}
