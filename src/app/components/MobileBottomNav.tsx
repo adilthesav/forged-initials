@@ -1,10 +1,8 @@
-Go to src/app/components/MobileBottomNav.tsx on GitHub, click the pencil edit icon, select all the text (Ctrl+A), delete it, then paste this entire file:
-
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Home, Sparkles, ShoppingBag, Package,
-  Info, BookOpen, Truck, HelpCircle, MessageCircle, X, MoreHorizontal, ShoppingCart
+  Info, BookOpen, HelpCircle, MessageCircle, X, MoreHorizontal, ShoppingCart
 } from 'lucide-react';
 
 type Page = 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop';
@@ -30,7 +28,6 @@ const ALL_TABS = [
   { name: 'Jewelry Parts', icon: Package,       page: null,              sectionId: 'jewelry-parts' },
   { name: 'About',         icon: Info,          page: null,              sectionId: 'about' },
   { name: 'Journal',       icon: BookOpen,      page: 'blog'    as Page, sectionId: null },
-  { name: 'Track Order',   icon: Truck,         page: 'track'   as Page, sectionId: null },
   { name: 'FAQ',           icon: HelpCircle,    page: 'faq'     as Page, sectionId: null },
   { name: 'Contact',       icon: MessageCircle, page: 'contact' as Page, sectionId: null },
 ];
@@ -144,11 +141,9 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
             </div>
             <div className="flex items-center justify-between px-5 py-2">
               <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#b8952e' }}>Navigate</p>
-              <button
-                onClick={() => setDrawerOpen(false)}
+              <button onClick={() => setDrawerOpen(false)}
                 className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(0,0,0,0.06)' }}
-              >
+                style={{ background: 'rgba(0,0,0,0.06)' }}>
                 <X className="w-3.5 h-3.5 text-stone-500" />
               </button>
             </div>
@@ -157,29 +152,18 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
                 const Icon = tab.icon;
                 const active = activeTab === tab.name || (tab.name === 'Custom Orders' && activeTab === 'Order');
                 return (
-                  <button
-                    key={tab.name}
-                    onClick={() => handleTab(tab)}
+                  <button key={tab.name} onClick={() => handleTab(tab)}
                     className="flex flex-col items-center gap-1.5 py-3.5 px-2 rounded-2xl transition-all duration-150 active:scale-95"
                     style={{
-                      background: active
-                        ? 'linear-gradient(135deg,rgba(201,168,76,0.18),rgba(232,201,106,0.1))'
-                        : 'rgba(0,0,0,0.03)',
+                      background: active ? 'linear-gradient(135deg,rgba(201,168,76,0.18),rgba(232,201,106,0.1))' : 'rgba(0,0,0,0.03)',
                       border: active ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
-                    }}
-                  >
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{
-                        background: active ? 'linear-gradient(135deg,#c9a84c,#e8c96a)' : 'rgba(0,0,0,0.06)',
-                      }}
-                    >
+                    }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: active ? 'linear-gradient(135deg,#c9a84c,#e8c96a)' : 'rgba(0,0,0,0.06)' }}>
                       <Icon className="w-5 h-5" style={{ color: active ? '#2a1800' : 'rgba(30,20,5,0.45)' }} />
                     </div>
-                    <span
-                      className="text-[10px] font-semibold text-center leading-tight"
-                      style={{ color: active ? '#8a6710' : 'rgba(30,20,5,0.5)' }}
-                    >
+                    <span className="text-[10px] font-semibold text-center leading-tight"
+                      style={{ color: active ? '#8a6710' : 'rgba(30,20,5,0.5)' }}>
                       {tab.name}
                     </span>
                   </button>
@@ -190,61 +174,39 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
         )}
       </AnimatePresence>
 
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
         style={{
           background: 'rgba(255,252,248,0.96)',
           backdropFilter: 'blur(20px)',
           borderTop: '1px solid rgba(201,168,76,0.15)',
           boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        }}
-      >
+        }}>
         <div className="flex items-center justify-around px-2 h-[64px]">
           {PRIMARY.map((tab) => {
             const Icon = tab.icon;
             const active = isActive(tab.name);
             const isMore = tab.name === 'More';
             return (
-              <button
-                key={tab.name}
-                onClick={() => {
-                  if (isMore) setDrawerOpen(v => !v);
-                  else handleTab(tab as any);
-                }}
+              <button key={tab.name}
+                onClick={() => { if (isMore) setDrawerOpen(v => !v); else handleTab(tab as any); }}
                 className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative transition-all duration-150 active:scale-90"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
+                style={{ WebkitTapHighlightColor: 'transparent' }}>
                 {active && !isMore && (
-                  <motion.div
-                    layoutId="bottom-active-dot"
+                  <motion.div layoutId="bottom-active-dot"
                     className="absolute top-1 w-1 h-1 rounded-full"
                     style={{ background: '#c9a84c' }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
                 )}
-                <div
-                  className="w-10 h-8 rounded-xl flex items-center justify-center transition-all duration-200"
+                <div className="w-10 h-8 rounded-xl flex items-center justify-center transition-all duration-200"
                   style={{
-                    background: active
-                      ? 'linear-gradient(135deg,rgba(201,168,76,0.2),rgba(232,201,106,0.1))'
-                      : 'transparent',
+                    background: active ? 'linear-gradient(135deg,rgba(201,168,76,0.2),rgba(232,201,106,0.1))' : 'transparent',
                     transform: active ? 'translateY(-1px)' : 'none',
-                  }}
-                >
-                  <Icon style={{
-                    width: 20, height: 20,
-                    color: active ? '#c9a84c' : 'rgba(30,20,5,0.35)',
-                    transition: 'color 0.2s ease',
-                  }} />
+                  }}>
+                  <Icon style={{ width: 20, height: 20, color: active ? '#c9a84c' : 'rgba(30,20,5,0.35)', transition: 'color 0.2s ease' }} />
                 </div>
-                <span
-                  className="text-[10px] font-semibold tracking-tight"
-                  style={{
-                    color: active ? '#8a6710' : 'rgba(30,20,5,0.4)',
-                    transition: 'color 0.2s ease',
-                  }}
-                >
+                <span className="text-[10px] font-semibold tracking-tight"
+                  style={{ color: active ? '#8a6710' : 'rgba(30,20,5,0.4)', transition: 'color 0.2s ease' }}>
                   {tab.name}
                 </span>
               </button>
