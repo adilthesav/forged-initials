@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, Lock } from 'lucide-react';
 
 interface Product {
@@ -140,15 +140,12 @@ function ProductForm({ initial, onSave, onCancel, saving }: { initial: Product; 
   );
 }
 
-export function OwnerProductPanel() {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('fi_admin') === 'yes');
+function AdminPanel() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Product | null>(null);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  if (!unlocked) return <LoginGate onUnlock={() => setUnlocked(true)} />;
 
   const load = async () => {
     setLoading(true);
@@ -196,10 +193,6 @@ export function OwnerProductPanel() {
             <p className="text-stone-500 text-sm mt-0.5">Add, edit, and manage your shop inventory</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { sessionStorage.removeItem('fi_admin'); setUnlocked(false); }}
-              className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition-all" title="Lock panel">
-              <Lock className="w-4 h-4 text-stone-400" />
-            </button>
             <button onClick={load} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition-all" title="Refresh">
               <RefreshCw className="w-4 h-4 text-stone-500" />
             </button>
@@ -288,4 +281,11 @@ export function OwnerProductPanel() {
       </div>
     </div>
   );
+}
+
+export function OwnerProductPanel() {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('fi_admin') === 'yes');
+
+  if (!unlocked) return <LoginGate onUnlock={() => setUnlocked(true)} />;
+  return <AdminPanel />;
 }
