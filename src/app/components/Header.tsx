@@ -10,7 +10,6 @@ interface HeaderProps {
 
 const NAV_ITEMS = [
   { name: 'Home',          icon: Home,          sectionId: 'home' },
-  { name: 'Shop',          icon: ShoppingCart,  sectionId: null },
   { name: 'Gallery',       icon: Sparkles,      sectionId: 'gallery' },
   { name: 'Custom Orders', icon: ShoppingBag,   sectionId: 'custom-orders' },
   { name: 'Jewelry Parts', icon: Package,       sectionId: 'jewelry-parts' },
