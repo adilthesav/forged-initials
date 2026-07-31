@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, Lock } from 'lucide-react';
 
 interface Product {
   id?: string;
@@ -22,6 +22,51 @@ async function adminFetch(method: string, body?: object) {
     body: body ? JSON.stringify(body) : undefined,
   });
   return res.json();
+}
+
+function LoginGate({ onUnlock }: { onUnlock: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+
+  const attempt = () => {
+    if (password === ADMIN_TOKEN) {
+      sessionStorage.setItem('fi_admin', 'yes');
+      onUnlock();
+    } else {
+      setError(true);
+      setPassword('');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50/30 to-white px-4">
+      <div className="bg-white rounded-3xl border border-stone-100 p-8 w-full max-w-sm text-center"
+        style={{ boxShadow: '0 8px 40px rgba(201,168,76,0.1)' }}>
+        <div className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)' }}>
+          <Lock className="w-7 h-7 text-amber-900" />
+        </div>
+        <h2 className="text-xl font-bold text-stone-800 mb-1">Admin Access</h2>
+        <p className="text-stone-400 text-sm mb-6">Enter your password to manage products</p>
+        <input
+          type="password"
+          value={password}
+          onChange={e => { setPassword(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === 'Enter' && attempt()}
+          placeholder="Password"
+          autoFocus
+          className={`w-full px-4 py-3 text-sm border rounded-xl text-center tracking-widest focus:outline-none mb-2 transition-all ${error ? 'border-red-300 bg-red-50' : 'border-stone-200 focus:border-amber-400'}`}
+        />
+        {error && <p className="text-red-400 text-xs mb-3">Incorrect password. Try again.</p>}
+        <button onClick={attempt}
+          className="w-full py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 mt-2"
+          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
+          Unlock Panel
+        </button>
+        <p className="text-stone-300 text-[10px] mt-4">Forged Initials · Owner Portal</p>
+      </div>
+    </div>
+  );
 }
 
 function ProductForm({ initial, onSave, onCancel, saving }: { initial: Product; onSave: (p: Product) => void; onCancel: () => void; saving: boolean }) {
@@ -73,7 +118,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: { initial: Product; 
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">Image URL</label>
         <input value={form.image_url} onChange={e => set('image_url', e.target.value)}
-          placeholder="https://… (paste a direct image link)"
+          placeholder="https://… paste a direct image link"
           className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 h-20 w-20 object-cover rounded-lg border border-stone-200" />}
       </div>
@@ -96,20 +141,23 @@ function ProductForm({ initial, onSave, onCancel, saving }: { initial: Product; 
 }
 
 export function OwnerProductPanel() {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('fi_admin') === 'yes');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Product | null>(null);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  if (!unlocked) return <LoginGate onUnlock={() => setUnlocked(true)} />;
+
+  const load = async () => {
     setLoading(true);
     const data = await adminFetch('GET');
     setProducts(Array.isArray(data) ? data : []);
     setLoading(false);
-  }, []);
+  };
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, []);
 
   const handleSave = async (product: Product) => {
     setSaving(true);
@@ -148,6 +196,10 @@ export function OwnerProductPanel() {
             <p className="text-stone-500 text-sm mt-0.5">Add, edit, and manage your shop inventory</p>
           </div>
           <div className="flex gap-2">
+            <button onClick={() => { sessionStorage.removeItem('fi_admin'); setUnlocked(false); }}
+              className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition-all" title="Lock panel">
+              <Lock className="w-4 h-4 text-stone-400" />
+            </button>
             <button onClick={load} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition-all" title="Refresh">
               <RefreshCw className="w-4 h-4 text-stone-500" />
             </button>
@@ -167,7 +219,8 @@ export function OwnerProductPanel() {
 
         {loading && (
           <div className="text-center py-16 text-stone-400">
-            <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />Loading products…
+            <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />
+            Loading products…
           </div>
         )}
 
