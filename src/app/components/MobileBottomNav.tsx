@@ -1,29 +1,30 @@
+Go to src/app/components/MobileBottomNav.tsx on GitHub, click the pencil edit icon, select all the text (Ctrl+A), delete it, then paste this entire file:
+
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Home, Sparkles, ShoppingBag, Package,
-  Info, BookOpen, Truck, HelpCircle, MessageCircle, X, MoreHorizontal
+  Info, BookOpen, Truck, HelpCircle, MessageCircle, X, MoreHorizontal, ShoppingCart
 } from 'lucide-react';
 
-type Page = 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog';
+type Page = 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop';
 
 interface Props {
   currentPage: Page;
   onNavigate: (page: Page) => void;
 }
 
-// 5 primary tabs always visible in the bar
 const PRIMARY = [
-  { name: 'Home',          icon: Home,         page: 'home'    as Page, sectionId: 'home' },
-  { name: 'Gallery',       icon: Sparkles,     page: null,             sectionId: 'gallery' },
-  { name: 'Order',         icon: ShoppingBag,  page: null,             sectionId: 'custom-orders' },
-  { name: 'Contact',       icon: MessageCircle,page: 'contact' as Page, sectionId: null },
-  { name: 'More',          icon: MoreHorizontal,page: null,            sectionId: null },
+  { name: 'Home',    icon: Home,           page: 'home'    as Page, sectionId: 'home' },
+  { name: 'Shop',    icon: ShoppingCart,   page: 'shop'    as Page, sectionId: null },
+  { name: 'Order',   icon: ShoppingBag,    page: null,              sectionId: 'custom-orders' },
+  { name: 'Contact', icon: MessageCircle,  page: 'contact' as Page, sectionId: null },
+  { name: 'More',    icon: MoreHorizontal, page: null,              sectionId: null },
 ];
 
-// All tabs shown in the "More" drawer
 const ALL_TABS = [
   { name: 'Home',          icon: Home,          page: 'home'    as Page, sectionId: 'home' },
+  { name: 'Shop',          icon: ShoppingCart,  page: 'shop'    as Page, sectionId: null },
   { name: 'Gallery',       icon: Sparkles,      page: null,              sectionId: 'gallery' },
   { name: 'Custom Orders', icon: ShoppingBag,   page: null,              sectionId: 'custom-orders' },
   { name: 'Jewelry Parts', icon: Package,       page: null,              sectionId: 'jewelry-parts' },
@@ -35,7 +36,7 @@ const ALL_TABS = [
 ];
 
 const PAGE_TAB: Record<string, string> = {
-  contact: 'Contact', faq: 'FAQ', track: 'Track Order', blog: 'Journal',
+  contact: 'Contact', faq: 'FAQ', track: 'Track Order', blog: 'Journal', shop: 'Shop',
 };
 
 function scrollToSection(id: string) {
@@ -50,7 +51,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
     ? (PAGE_TAB[currentPage] ?? 'Home')
     : scrollTab;
 
-  // Scroll spy
   useEffect(() => {
     if (currentPage !== 'home') return;
     const sections = ['home', 'gallery', 'custom-orders', 'jewelry-parts', 'about'];
@@ -78,7 +78,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
     if (currentPage === 'home') setScrollTab('Home');
   }, [currentPage]);
 
-  // Close drawer on outside tap / scroll
   useEffect(() => {
     if (!drawerOpen) return;
     const close = () => setDrawerOpen(false);
@@ -109,7 +108,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
 
   return (
     <>
-      {/* Backdrop */}
       <AnimatePresence>
         {drawerOpen && (
           <motion.div
@@ -125,7 +123,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Bottom drawer — all tabs */}
       <AnimatePresence>
         {drawerOpen && (
           <motion.div
@@ -142,11 +139,9 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
               border: '1px solid rgba(201,168,76,0.15)',
             }}
           >
-            {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(0,0,0,0.12)' }} />
             </div>
-
             <div className="flex items-center justify-between px-5 py-2">
               <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#b8952e' }}>Navigate</p>
               <button
@@ -157,8 +152,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
                 <X className="w-3.5 h-3.5 text-stone-500" />
               </button>
             </div>
-
-            {/* 3-column grid of all tabs */}
             <div className="grid grid-cols-3 gap-1.5 px-4 pb-5 pt-1">
               {ALL_TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -178,15 +171,10 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
                       style={{
-                        background: active
-                          ? 'linear-gradient(135deg,#c9a84c,#e8c96a)'
-                          : 'rgba(0,0,0,0.06)',
+                        background: active ? 'linear-gradient(135deg,#c9a84c,#e8c96a)' : 'rgba(0,0,0,0.06)',
                       }}
                     >
-                      <Icon
-                        className="w-5 h-5"
-                        style={{ color: active ? '#2a1800' : 'rgba(30,20,5,0.45)' }}
-                      />
+                      <Icon className="w-5 h-5" style={{ color: active ? '#2a1800' : 'rgba(30,20,5,0.45)' }} />
                     </div>
                     <span
                       className="text-[10px] font-semibold text-center leading-tight"
@@ -202,7 +190,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Fixed bottom bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
         style={{
@@ -218,21 +205,16 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
             const Icon = tab.icon;
             const active = isActive(tab.name);
             const isMore = tab.name === 'More';
-
             return (
               <button
                 key={tab.name}
                 onClick={() => {
-                  if (isMore) {
-                    setDrawerOpen(v => !v);
-                  } else {
-                    handleTab(tab as any);
-                  }
+                  if (isMore) setDrawerOpen(v => !v);
+                  else handleTab(tab as any);
                 }}
                 className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative transition-all duration-150 active:scale-90"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {/* Active indicator dot */}
                 {active && !isMore && (
                   <motion.div
                     layoutId="bottom-active-dot"
@@ -241,8 +223,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-
-                {/* Icon container */}
                 <div
                   className="w-10 h-8 rounded-xl flex items-center justify-center transition-all duration-200"
                   style={{
@@ -252,16 +232,12 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
                     transform: active ? 'translateY(-1px)' : 'none',
                   }}
                 >
-                  <Icon
-                    style={{
-                      width: 20, height: 20,
-                      color: active ? '#c9a84c' : 'rgba(30,20,5,0.35)',
-                      transition: 'color 0.2s ease',
-                    }}
-                  />
+                  <Icon style={{
+                    width: 20, height: 20,
+                    color: active ? '#c9a84c' : 'rgba(30,20,5,0.35)',
+                    transition: 'color 0.2s ease',
+                  }} />
                 </div>
-
-                {/* Label */}
                 <span
                   className="text-[10px] font-semibold tracking-tight"
                   style={{
@@ -277,7 +253,6 @@ export function MobileBottomNav({ currentPage, onNavigate }: Props) {
         </div>
       </nav>
 
-      {/* Bottom spacer so content isn't hidden under the bar */}
       <div className="h-[64px] md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom,0px)' }} />
     </>
   );
