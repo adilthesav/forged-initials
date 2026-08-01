@@ -1,3 +1,4 @@
+import { AdminBlogPanel } from './components/AdminBlogPanel';
 import { createBrowserRouter } from 'react-router';
 import { Root } from './Root';
 import { HomePage } from './pages/HomePage';
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: 'blog/:slug', Component: BlogPostPage },
       { path: 'shop', Component: () => <div className="pt-4"><ShopSection /></div> },
       { path: 'admin-shop', Component: OwnerProductPanel },
+      { path: 'admin-blog', Component: AdminBlogPanel },
       { path: 'test', Component: () => <div className="pt-20 pb-20 bg-slate-50 min-h-screen"><TestSystem onNavigate={() => {}} /></div> },
       { path: 'email', Component: () => <div className="pt-20 pb-20 bg-gradient-to-b from-green-50 to-emerald-50 min-h-screen"><QuickEmailGenerator onNavigate={() => {}} /></div> },
     ],
