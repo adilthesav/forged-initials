@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } 
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Maximize2 } from 'lucide-react';
 const extraSmallLetters = '/extra-small.jpeg';
-const smallMediumLargeLetters = '/classic-range.jpeg';
+const smallMediumLargeLetters = '/classic-range-v2.jpeg';
 const extraLargeLetters = '/extra-large.jpeg';
 
 export function ProductShowcase() {
