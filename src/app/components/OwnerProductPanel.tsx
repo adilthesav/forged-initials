@@ -35,6 +35,7 @@ interface CJVariant {
   variantNameEn: string;
   variantSellPrice: string | number;
   variantImage?: string;
+    warehouseCountryCode?: string;   // ← added
 }
 
 const toNum = (v: any): number => parseFloat(String(v ?? 0)) || 0;
@@ -339,6 +340,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             name: v.variantNameEn,
             cj_cost: toNum(v.variantSellPrice),
             price_cents: variantPrices[v.vid] || Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100),
+              warehouseCountryCode: v.warehouseCountryCode || 'CN',   // ← added
           })),
         },
       });
