@@ -3,15 +3,18 @@ const SITE_URL = 'https://forged-initials.com';
 
 function extractImageUrl(raw) {
   if (!raw) return '';
-  if (Array.isArray(raw)) return raw[0] || '';
-  if (typeof raw === 'string' && raw.trim().startsWith('[')) {
-    try { return JSON.parse(raw)[0] || ''; } catch { return raw; }
+  const s = typeof raw === 'string' ? raw.trim() : String(raw);
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr) && arr[0]) return String(arr[0]).trim();
+    } catch {}
   }
-  return raw;
+  return s;
 }
 
-function isValidUrl(str) {
-  try { new URL(str); return true; } catch { return false; }
+function isValidUrl(s) {
+  try { return /^https?:\/\/.+/.test(new URL(s).href); } catch { return false; }
 }
 
 exports.handler = async (event) => {
@@ -25,11 +28,11 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors, body: 'Method not allowed' };
 
   try {
-    const { productId, productName, priceInCents, imageUrl, quantity = 1 } = JSON.parse(event.body);
+    const { productId, productName, priceInCents, imageUrl, quantity = 1, selectedVid = '' } = JSON.parse(event.body);
 
     const checkRes = await fetch(
       `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,active`,
-      { headers: { apikey: process.env.SUPABASE_ANON_KEY, Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
+      { headers: { 'apikey': process.env.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
     );
     const [product] = await checkRes.json();
 
@@ -40,29 +43,30 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Out of stock' }) };
     }
 
-    // Normalize image — CJ stores arrays, Stripe needs a single valid URL
-    const cleanImage = extractImageUrl(imageUrl);
-
     const params = new URLSearchParams();
     params.append('mode', 'payment');
     params.append('line_items[0][quantity]', String(quantity));
     params.append('line_items[0][price_data][currency]', 'usd');
     params.append('line_items[0][price_data][unit_amount]', String(priceInCents));
     params.append('line_items[0][price_data][product_data][name]', productName);
+
+    const cleanImage = extractImageUrl(imageUrl);
     if (cleanImage && isValidUrl(cleanImage)) {
       params.append('line_items[0][price_data][product_data][images][0]', cleanImage);
     }
+
     params.append('success_url', `${SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`);
     params.append('cancel_url', `${SITE_URL}/shop`);
     params.append('metadata[productId]', productId);
     params.append('metadata[quantity]', String(quantity));
+    params.append('metadata[selectedVid]', selectedVid);
     params.append('shipping_address_collection[allowed_countries][0]', 'US');
     params.append('phone_number_collection[enabled]', 'true');
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
@@ -70,7 +74,6 @@ exports.handler = async (event) => {
 
     const session = await stripeRes.json();
     if (session.error) {
-      console.error('Stripe error:', session.error);
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: session.error.message }) };
     }
 
