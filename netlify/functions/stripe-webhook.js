@@ -27,7 +27,7 @@ async function getCJToken() {
   return data.data.accessToken;
 }
 
-async function createCJOrder(vid, quantity, session) {
+async function createCJOrder(vid, quantity, session, fromCountryCode = 'CN') {
   const token = await getCJToken();
   const ship = session.shipping_details || {};
   const addr = ship.address || {};
@@ -37,6 +37,7 @@ async function createCJOrder(vid, quantity, session) {
 
   const payload = {
     orderNumber: `FI-${Date.now()}`,
+    fromCountryCode,
     shippingZip: addr.postal_code || '',
     shippingCountryCode: addr.country || 'US',
     shippingCountry: 'United States',
@@ -87,7 +88,6 @@ exports.handler = async (event) => {
       'Content-Type': 'application/json',
     };
 
-    // Fetch product + CJ fields
     let prod = null;
     if (productId) {
       const getRes = await fetch(
@@ -97,7 +97,6 @@ exports.handler = async (event) => {
       [prod] = await getRes.json();
     }
 
-    // Decrement stock
     if (prod) {
       const newQty = Math.max(0, prod.quantity_remaining - parseInt(quantity || '1'));
       await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${productId}`, {
@@ -107,17 +106,18 @@ exports.handler = async (event) => {
       });
     }
 
-    // Submit CJ order — use selectedVid from checkout, or fall back to product.cj_vid
     const vidToUse = selectedVid || (prod && prod.cj_vid) || '';
     if (vidToUse && prod) {
       try {
-        await createCJOrder(vidToUse, quantity || '1', session);
+        const variants = prod.variants || [];
+        const selectedVariant = variants.find(v => v.vid === vidToUse);
+        const fromCountry = selectedVariant?.warehouseCountryCode || 'CN';
+        await createCJOrder(vidToUse, quantity || '1', session, fromCountry);
       } catch (err) {
         console.error('CJ order failed:', err.message);
       }
     }
 
-    // Telegram notification
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
