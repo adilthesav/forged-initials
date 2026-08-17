@@ -46,7 +46,7 @@ async function createCJOrder(vid, quantity, session) {
     shippingAddress2: addr.line2 || '',
     shippingCustomerName: name,
     shippingPhone: phone.replace(/\D/g, '') || '0000000000',
-    remark: `Forged Initials order`,
+    remark: 'Forged Initials order',
     email,
     products: [{ vid, quantity: parseInt(quantity) || 1 }],
   };
