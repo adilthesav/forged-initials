@@ -228,22 +228,37 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
 
   return (
     <div className="space-y-4">
-      {/* Search bar */}
-      <div className="flex gap-2">
-        <input
-          value={keyword}
-          onChange={e => setKeyword(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { setPage(1); search(1); } }}
-          placeholder="Search CJ catalog… e.g. 925 silver initial ring"
-          className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
-        />
-        <button onClick={() => { setPage(1); search(1); }} disabled={searching}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-all"
-          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
-          <Search className="w-4 h-4" />
-          {searching ? 'Searching…' : 'Search'}
-        </button>
-      </div>
+           {/* Search bar */}
+      {(() => {
+        const t = keyword.trim();
+        let typeHint: { label: string; color: string } | null = null;
+        if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) typeHint = { label: 'CJ product URL', color: '#7c3aed' };
+        else if (/^CJ[A-Z0-9]{5,}$/i.test(t)) typeHint = { label: 'SKU lookup', color: '#059669' };
+        else if (/^\d{10,}$/.test(t)) typeHint = { label: 'Product ID lookup', color: '#059669' };
+        else if (t.length > 0) typeHint = { label: 'Keyword search', color: '#6b7280' };
+        return (
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                value={keyword}
+                onChange={e => setKeyword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { setPage(1); search(1); } }}
+                placeholder="Keyword, SKU (CJLX204893911KP), or paste a CJ product URL"
+                className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+              />
+              <button onClick={() => { setPage(1); search(1); }} disabled={searching}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-all"
+                style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
+                <Search className="w-4 h-4" />
+                {searching ? 'Searching…' : 'Search'}
+              </button>
+            </div>
+            <p className="text-[11px] px-1" style={{ color: typeHint?.color ?? '#a8a29e' }}>
+              {typeHint ? `↳ ${typeHint.label}` : 'Tip: paste a SKU like CJLX204893911KP or a full CJ product page URL for exact match'}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Error */}
       {searchError && (
