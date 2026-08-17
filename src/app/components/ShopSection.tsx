@@ -9,6 +9,7 @@ interface Variant {
   name: string;
   cj_cost?: number;
   price_cents?: number;
+  warehouseCountryCode?: string;
 }
 
 interface Product {
@@ -83,14 +84,16 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
 
   const variantsInColor = groups.get(selectedColor) || [];
   const selectedVariant = product.variants?.find(v => v.vid === selectedVid);
-  const currentPrice = selectedVariant?.price_cents || product.price_cents;
+  const currentPrice = selectedVariant?.price_cents ?? product.price_cents;
   const soldOut = product.quantity_remaining === 0;
   const canBuy = !soldOut && (!hasVariants || !!selectedVid);
 
   const allPrices = hasVariants
     ? product.variants!.map(v => v.price_cents || product.price_cents)
     : [product.price_cents];
-  const pricesVary = Math.min(...allPrices) !== Math.max(...allPrices);
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
+  const pricesVary = minPrice !== maxPrice;
 
   const handleBuy = async () => {
     if (!canBuy || buying) return;
@@ -127,7 +130,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
         className="bg-white w-full sm:max-w-2xl sm:rounded-3xl overflow-hidden flex flex-col sm:flex-row"
         style={{ maxHeight: '95vh' }}
       >
-        {/* Left: Image */}
         <div className="relative sm:w-5/12 flex-shrink-0 bg-stone-100">
           <div className="w-full aspect-square sm:h-full sm:aspect-auto relative">
             {product.image_url ? (
@@ -146,9 +148,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
           </button>
         </div>
 
-        {/* Right: Details */}
         <div className="flex-1 overflow-y-auto flex flex-col p-5 sm:p-7 gap-4">
-
           <div className="flex items-center justify-between">
             <span
               className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full capitalize"
@@ -371,7 +371,7 @@ export function ShopSection() {
     setError('');
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?active=eq.true&order=created_at.desc`,
+        `${SUPABASE_URL}/rest/v1/products?active=eq.true&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
         { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
       );
       const data = await res.json();
