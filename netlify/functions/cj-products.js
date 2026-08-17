@@ -58,7 +58,7 @@ exports.handler = async (event) => {
 
       let url;
       if (type === 'pid') {
-        url = `https://developers.cjdropshipping.com/api2.0/v1/product/query?pid=${encodeURIComponent(value)}`;
+        url = `https://developers.cjdropshipping.com/api2.0/vcom/api2.0/v1/product/query?pid=${encodeURIComponent(value)}`;
       } else if (type === 'sku') {
         url = `https://developers.cjdropshipping.com/api2.0/v1/product/list?productSku=${encodeURIComponent(value)}&pageNum=${page}&pageSize=20`;
       } else {
