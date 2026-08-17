@@ -1,26 +1,16 @@
-const ADMIN_TOKEN = 'forgedadmin2026';
-const CJ_BASE = 'https://developers.cjdropshipping.com/api2.0/v1';
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
+const ADMIN_TOKEN = 'forgedadmin2026';
 
-async function getCJToken() {
-  const res = await fetch(`${CJ_BASE}/authentication/getAccessToken`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: process.env.CJ_EMAIL, password: process.env.CJ_API_KEY }),
-  });
-  const data = await res.json();
-  if (!data.data?.accessToken) throw new Error('CJ auth failed: ' + (data.message || JSON.stringify(data)));
-  return data.data.accessToken;
-}
-
-// CJ often returns productImage as a JSON array string — extract first URL
 function extractImageUrl(raw) {
   if (!raw) return '';
-  if (Array.isArray(raw)) return raw[0] || '';
-  if (typeof raw === 'string' && raw.trim().startsWith('[')) {
-    try { return JSON.parse(raw)[0] || ''; } catch { return raw; }
+  const s = typeof raw === 'string' ? raw.trim() : String(raw);
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr) && arr[0]) return String(arr[0]).trim();
+    } catch {}
   }
-  return raw;
+  return s;
 }
 
 function detectSearchType(input) {
@@ -32,114 +22,141 @@ function detectSearchType(input) {
   return { type: 'keyword', value: t };
 }
 
+async function getCJToken() {
+  const res = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: process.env.CJ_EMAIL, password: process.env.CJ_API_KEY }),
+  });
+  const data = await res.json();
+  if (!data.data?.accessToken) throw new Error('CJ auth failed: ' + (data.message || JSON.stringify(data)));
+  return data.data.accessToken;
+}
+
 exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, x-admin-token',
+    'Access-Control-Allow-Headers': 'Content-Type,x-admin-token',
     'Content-Type': 'application/json',
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+
   if (event.headers['x-admin-token'] !== ADMIN_TOKEN) {
     return { statusCode: 401, headers: cors, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
-  let body;
-  try { body = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
-
   try {
-    const cjToken = await getCJToken();
+    const body = JSON.parse(event.body || '{}');
     const { action } = body;
 
-    // ── Search ───────────────────────────────────────────────────────────────
+    // ── SEARCH ────────────────────────────────────────────────────────────────
     if (action === 'search') {
       const { keyword = '', page = 1 } = body;
-      const detected = detectSearchType(keyword);
-      let url;
-      let singleProduct = false;
+      const token = await getCJToken();
+      const { type, value } = detectSearchType(keyword);
 
-      if (detected.type === 'pid') {
-        url = `${CJ_BASE}/product/query?pid=${detected.value}`;
-        singleProduct = true;
-      } else if (detected.type === 'sku') {
-        url = `${CJ_BASE}/product/list?productSku=${encodeURIComponent(detected.value)}&pageNum=1&pageSize=20`;
+      let url;
+      if (type === 'pid') {
+        url = `https://developers.cjdropshipping.com/api2.0/v1/product/query?pid=${encodeURIComponent(value)}`;
+      } else if (type === 'sku') {
+        url = `https://developers.cjdropshipping.com/api2.0/v1/product/list?productSku=${encodeURIComponent(value)}&pageNum=${page}&pageSize=20`;
       } else {
-        url = `${CJ_BASE}/product/list?productNameEn=${encodeURIComponent(detected.value)}&pageNum=${page}&pageSize=20`;
+        url = `https://developers.cjdropshipping.com/api2.0/v1/product/list?keyword=${encodeURIComponent(value)}&pageNum=${page}&pageSize=20`;
       }
 
-      const res = await fetch(url, { headers: { 'CJ-Access-Token': cjToken } });
+      const res = await fetch(url, {
+        headers: { 'CJ-Access-Token': token, 'Content-Type': 'application/json' },
+      });
       const data = await res.json();
 
-      if (singleProduct) {
-        const product = data.data;
-        if (product) {
-          // Normalize image on the way out too
-          product.productImage = extractImageUrl(product.productImage);
-        }
+      if (type === 'pid') {
+        const p = data.data;
+        if (!p) return { statusCode: 200, headers: cors, body: JSON.stringify({ list: [], total: 0 }) };
         return {
           statusCode: 200, headers: cors,
-          body: JSON.stringify(product ? { list: [product], total: 1 } : { list: [], total: 0 }),
+          body: JSON.stringify({
+            list: [{
+              pid: p.pid,
+              productNameEn: p.productNameEn,
+              productImage: extractImageUrl(p.productImage),
+              sellPrice: p.sellPrice,
+              categoryName: p.categoryName || '',
+            }],
+            total: 1,
+          }),
         };
       }
 
-      // Normalize images in list results
       const list = (data.data?.list || []).map(p => ({
-        ...p,
+        pid: p.pid,
+        productNameEn: p.productNameEn,
         productImage: extractImageUrl(p.productImage),
+        sellPrice: p.sellPrice,
+        categoryName: p.categoryName || '',
       }));
-
-      return {
-        statusCode: 200, headers: cors,
-        body: JSON.stringify({ list, total: data.data?.total || 0 }),
-      };
+      return { statusCode: 200, headers: cors, body: JSON.stringify({ list, total: data.data?.total || 0 }) };
     }
 
-    // ── Variants ─────────────────────────────────────────────────────────────
+    // ── VARIANTS ──────────────────────────────────────────────────────────────
     if (action === 'variants') {
       const { pid } = body;
-      const res = await fetch(`${CJ_BASE}/product/variant/query?pid=${pid}`, {
-        headers: { 'CJ-Access-Token': cjToken },
-      });
+      const token = await getCJToken();
+      const res = await fetch(
+        `https://developers.cjdropshipping.com/api2.0/v1/product/variant/query?pid=${encodeURIComponent(pid)}`,
+        { headers: { 'CJ-Access-Token': token, 'Content-Type': 'application/json' } }
+      );
       const data = await res.json();
-      const variants = (data.data || []).map(v => ({
-        ...v,
+      const raw = data.data?.variants || data.data || [];
+      const variants = (Array.isArray(raw) ? raw : []).map(v => ({
+        vid: v.vid,
+        variantNameEn: v.variantNameEn,
+        variantSellPrice: v.variantSellPrice,
         variantImage: extractImageUrl(v.variantImage),
       }));
       return { statusCode: 200, headers: cors, body: JSON.stringify(variants) };
     }
 
-    // ── Import ───────────────────────────────────────────────────────────────
+    // ── IMPORT (saves ALL variants as JSON array in one product row) ──────────
     if (action === 'import') {
       const { product } = body;
+      const variants = Array.isArray(product.variants) ? product.variants : [];
+
       const row = {
         name: product.name,
         description: product.description || '',
-        price_cents: product.price_cents,
-        image_url: extractImageUrl(product.image_url),  // ← key fix
+        price_cents: parseInt(product.price_cents) || 0,
+        image_url: extractImageUrl(product.image_url),
         category: product.category || 'other',
         quantity_remaining: 999,
         active: false,
         cj_pid: product.pid || '',
-        cj_vid: product.vid || '',
+        cj_vid: '',
+        variants,
       };
+
+      const headers = {
+        'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      };
+
       const res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
         method: 'POST',
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-        },
+        headers,
         body: JSON.stringify(row),
       });
-      const data = await res.json();
-      return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
+      const saved = await res.json();
+      if (res.status >= 400) {
+        return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Supabase error', detail: saved }) };
+      }
+      return { statusCode: 200, headers: cors, body: JSON.stringify({ success: true, product: saved }) };
     }
 
-    return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Unknown action' }) };
+    return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Unknown action: ' + action }) };
   } catch (err) {
-    console.error('CJ API error:', err.message);
+    console.error('cj-products error:', err);
     return { statusCode: 500, headers: cors, body: JSON.stringify({ error: err.message }) };
   }
 };
