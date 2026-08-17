@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, Search, ShoppingBag, Download } from 'lucide-react';
 
+interface Variant {
+  vid: string;
+  name: string;
+  cj_cost?: number;
+}
+
 interface Product {
   id?: string;
   name: string;
@@ -12,6 +18,7 @@ interface Product {
   active: boolean;
   cj_pid?: string;
   cj_vid?: string;
+  variants?: Variant[];
 }
 
 interface CJProduct {
@@ -56,6 +63,12 @@ async function cjFetch(action: string, extra: object = {}) {
     body: JSON.stringify({ action, ...extra }),
   });
   return res.json();
+}
+
+// Strip product name prefix from variant label
+function shortVariantName(varName: string, prodName: string): string {
+  const cleaned = varName.replace(prodName, '').replace(/^[\s\-–—·|,]+/, '').trim();
+  return (cleaned && cleaned.length < varName.length) ? cleaned : varName;
 }
 
 // ── ProductForm ──────────────────────────────────────────────────────────────
@@ -145,7 +158,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   const [selected, setSelected] = useState<CJProduct | null>(null);
   const [variants, setVariants] = useState<CJVariant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
-  const [pickedVariant, setPickedVariant] = useState<CJVariant | null>(null);
   const [sellPrice, setSellPrice] = useState(0);
   const [category, setCategory] = useState('pendant');
   const [importing, setImporting] = useState(false);
@@ -170,95 +182,102 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   const selectProduct = async (product: CJProduct) => {
     setSelected(product);
     setVariants([]);
-    setPickedVariant(null);
     setLoadingVariants(true);
     try {
       const data = await cjFetch('variants', { pid: product.pid });
       const list: CJVariant[] = Array.isArray(data) ? data : [];
       setVariants(list);
-      if (list[0]) {
-        setPickedVariant(list[0]);
-        setSellPrice(Math.ceil(toNum(list[0].variantSellPrice) * 2.5 * 100));
-      } else {
-        setSellPrice(Math.ceil(toNum(product.sellPrice) * 2.5 * 100));
-      }
+      // Use first variant's cost as the price hint
+      const baseCost = list[0] ? toNum(list[0].variantSellPrice) : toNum(product.sellPrice);
+      setSellPrice(Math.ceil(baseCost * 2.5 * 100));
     } catch {
       setSellPrice(Math.ceil(toNum(product.sellPrice) * 2.5 * 100));
     }
     setLoadingVariants(false);
   };
 
-  const pickVariant = (v: CJVariant) => {
-    setPickedVariant(v);
-    setSellPrice(Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100));
-  };
-
+  // Import the product with ALL variants stored — customers choose on storefront
   const doImport = async () => {
     if (!selected) return;
     setImporting(true);
-    const name = variants.length > 1 && pickedVariant
-      ? `${selected.productNameEn} — ${pickedVariant.variantNameEn}`
-      : selected.productNameEn;
     try {
       await cjFetch('import', {
         product: {
           pid: selected.pid,
-          vid: pickedVariant?.vid || '',
-          name,
-          description: `CJ cost: $${toNum(pickedVariant?.variantSellPrice || selected.sellPrice).toFixed(2)} · Dropshipped via CJ Dropshipping`,
-          image_url: pickedVariant?.variantImage || selected.productImage,
+          name: selected.productNameEn,
+          description: variants.length > 0
+            ? `${variants.length} size variants available — choose yours at checkout`
+            : '',
+          image_url: selected.productImage,
           price_cents: sellPrice,
           category,
+          variants: variants.map(v => ({
+            vid: v.vid,
+            name: v.variantNameEn,
+            cj_cost: toNum(v.variantSellPrice),
+          })),
         },
       });
-      setToast(name);
+      setToast(selected.productNameEn);
       setSelected(null);
       onImported();
-      setTimeout(() => setToast(''), 4000);
+      setTimeout(() => setToast(''), 5000);
     } catch (e: any) {
       alert('Import failed: ' + e.message);
     }
     setImporting(false);
   };
 
-  const cjCost = toNum(pickedVariant?.variantSellPrice ?? selected?.sellPrice ?? 0);
-  const markup = cjCost > 0 && sellPrice > 0
-    ? Math.round((sellPrice / 100 / cjCost - 1) * 100)
+  // Live search type hint
+  const detectType = (v: string) => {
+    const t = v.trim();
+    if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) return { label: 'CJ product URL', color: '#7c3aed' };
+    if (/^CJ[A-Z0-9]{5,}$/i.test(t)) return { label: 'SKU lookup', color: '#059669' };
+    if (/^\d{10,}$/.test(t)) return { label: 'Product ID lookup', color: '#059669' };
+    if (t.length > 0) return { label: 'Keyword search', color: '#6b7280' };
+    return null;
+  };
+  const typeHint = detectType(keyword);
+
+  // Representative CJ cost for margin display (cheapest variant)
+  const minCost = variants.length > 0
+    ? Math.min(...variants.map(v => toNum(v.variantSellPrice)))
+    : toNum(selected?.sellPrice ?? 0);
+  const markup = minCost > 0 && sellPrice > 0
+    ? Math.round((sellPrice / 100 / minCost - 1) * 100)
     : null;
 
   return (
     <div className="space-y-4">
-           {/* Search bar */}
-      {(() => {
-        const t = keyword.trim();
-        let typeHint: { label: string; color: string } | null = null;
-        if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) typeHint = { label: 'CJ product URL', color: '#7c3aed' };
-        else if (/^CJ[A-Z0-9]{5,}$/i.test(t)) typeHint = { label: 'SKU lookup', color: '#059669' };
-        else if (/^\d{10,}$/.test(t)) typeHint = { label: 'Product ID lookup', color: '#059669' };
-        else if (t.length > 0) typeHint = { label: 'Keyword search', color: '#6b7280' };
-        return (
-          <div className="space-y-1.5">
-            <div className="flex gap-2">
-              <input
-                value={keyword}
-                onChange={e => setKeyword(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { setPage(1); search(1); } }}
-                placeholder="Keyword, SKU (CJLX204893911KP), or paste a CJ product URL"
-                className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
-              />
-              <button onClick={() => { setPage(1); search(1); }} disabled={searching}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-all"
-                style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
-                <Search className="w-4 h-4" />
-                {searching ? 'Searching…' : 'Search'}
-              </button>
-            </div>
-            <p className="text-[11px] px-1" style={{ color: typeHint?.color ?? '#a8a29e' }}>
-              {typeHint ? `↳ ${typeHint.label}` : 'Tip: paste a SKU like CJLX204893911KP or a full CJ product page URL for exact match'}
-            </p>
-          </div>
-        );
-      })()}
+      {/* Search bar */}
+      <div className="space-y-1.5">
+        <div className="flex gap-2">
+          <input
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { setPage(1); search(1); } }}
+            placeholder="Keyword, SKU (CJLX204893911KP), or paste a CJ product URL"
+            className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          />
+          <button onClick={() => { setPage(1); search(1); }} disabled={searching}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-all"
+            style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
+            <Search className="w-4 h-4" />
+            {searching ? 'Searching…' : 'Search'}
+          </button>
+        </div>
+        <div className="flex items-center gap-3 px-1">
+          {typeHint ? (
+            <span className="text-[11px] font-medium" style={{ color: typeHint.color }}>
+              ↳ {typeHint.label}
+            </span>
+          ) : (
+            <span className="text-[11px] text-stone-400">
+              Tip: paste a SKU like <code className="bg-stone-100 px-1 rounded">CJLX204893911KP</code> or a full CJ product URL for exact match
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Error */}
       {searchError && (
@@ -270,18 +289,18 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
       {/* Success toast */}
       {toast && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-4 py-2.5 rounded-xl flex items-center gap-2">
-          ✅ Imported — activate <strong className="truncate max-w-[200px]">{toast}</strong> in the My Products tab
+          ✅ Imported — go to <strong>My Products</strong> tab to activate <span className="truncate max-w-[180px] font-semibold">{toast}</span>
         </div>
       )}
 
-      {/* Variant picker */}
+      {/* Product detail panel */}
       {selected && (
         <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
           <div className="flex items-start gap-3">
             <img src={selected.productImage} alt="" className="w-16 h-16 object-cover rounded-xl flex-shrink-0 border border-stone-100" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-stone-800 text-sm leading-snug">{selected.productNameEn}</p>
-              <p className="text-xs text-stone-400 mt-0.5">CJ price: ${toNum(selected.sellPrice).toFixed(2)}</p>
+              <p className="text-xs text-stone-400 mt-0.5">CJ base price: ${toNum(selected.sellPrice).toFixed(2)}</p>
             </div>
             <button onClick={() => setSelected(null)} className="p-1 rounded hover:bg-stone-100 flex-shrink-0">
               <X className="w-4 h-4 text-stone-400" />
@@ -294,19 +313,22 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             </p>
           ) : (
             <>
-              {variants.length > 1 && (
+              {/* Show all variants as info — all will be imported */}
+              {variants.length > 0 && (
                 <div>
-                  <label className="text-xs font-semibold text-stone-500 mb-2 block">Choose Variant</label>
-                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                    {variants.map(v => (
-                      <button key={v.vid} onClick={() => pickVariant(v)}
-                        className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                        style={pickedVariant?.vid === v.vid
-                          ? { background: '#c9a84c', color: '#2a1800', border: '1px solid #c9a84c' }
-                          : { background: 'white', color: '#78716c', border: '1px solid #e7e5e4' }}>
-                        {v.variantNameEn} (${toNum(v.variantSellPrice).toFixed(2)})
-                      </button>
-                    ))}
+                  <p className="text-xs font-semibold text-stone-500 mb-2">
+                    All {variants.length} variants will be imported — customers choose on the product page
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                    {variants.map(v => {
+                      const label = shortVariantName(v.variantNameEn, selected.productNameEn);
+                      return (
+                        <span key={v.vid}
+                          className="px-2.5 py-1 rounded-full text-xs font-medium border border-stone-200 bg-white text-stone-600">
+                          {label} · ${toNum(v.variantSellPrice).toFixed(2)}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -320,7 +342,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                     className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
                   {markup !== null && (
                     <p className="text-[10px] mt-0.5" style={{ color: markup >= 0 ? '#6b7280' : '#ef4444' }}>
-                      CJ cost: ${cjCost.toFixed(2)} · {markup >= 0 ? `+${markup}% margin` : `${markup}% below cost!`}
+                      Min CJ cost: ${minCost.toFixed(2)} · {markup >= 0 ? `+${markup}% margin` : `${markup}% below cost!`}
                     </p>
                   )}
                 </div>
@@ -340,7 +362,11 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
                 <Download className="w-3.5 h-3.5" />
-                {importing ? 'Importing…' : 'Import to My Shop (saves as hidden)'}
+                {importing
+                  ? 'Importing…'
+                  : variants.length > 0
+                    ? `Import with all ${variants.length} variants (saves as hidden)`
+                    : 'Import to My Shop (saves as hidden)'}
               </button>
             </>
           )}
@@ -523,7 +549,12 @@ export function OwnerProductPanel() {
                                 style={{ background: 'rgba(201,168,76,0.15)', color: '#8a6010' }}>
                                 {product.category}
                               </span>
-                              {product.cj_vid && (
+                              {Array.isArray(product.variants) && product.variants.length > 0 && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-500 border border-blue-100">
+                                  {product.variants.length} sizes
+                                </span>
+                              )}
+                              {product.cj_pid && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-orange-500 border border-orange-100">
                                   CJ
                                 </span>
