@@ -1,6 +1,19 @@
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
 const SITE_URL = 'https://forged-initials.com';
 
+function extractImageUrl(raw) {
+  if (!raw) return '';
+  if (Array.isArray(raw)) return raw[0] || '';
+  if (typeof raw === 'string' && raw.trim().startsWith('[')) {
+    try { return JSON.parse(raw)[0] || ''; } catch { return raw; }
+  }
+  return raw;
+}
+
+function isValidUrl(str) {
+  try { new URL(str); return true; } catch { return false; }
+}
+
 exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -16,7 +29,7 @@ exports.handler = async (event) => {
 
     const checkRes = await fetch(
       `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,active`,
-      { headers: { 'apikey': process.env.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
+      { headers: { apikey: process.env.SUPABASE_ANON_KEY, Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
     );
     const [product] = await checkRes.json();
 
@@ -27,23 +40,29 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Out of stock' }) };
     }
 
+    // Normalize image — CJ stores arrays, Stripe needs a single valid URL
+    const cleanImage = extractImageUrl(imageUrl);
+
     const params = new URLSearchParams();
     params.append('mode', 'payment');
     params.append('line_items[0][quantity]', String(quantity));
     params.append('line_items[0][price_data][currency]', 'usd');
     params.append('line_items[0][price_data][unit_amount]', String(priceInCents));
     params.append('line_items[0][price_data][product_data][name]', productName);
-    if (imageUrl) params.append('line_items[0][price_data][product_data][images][0]', imageUrl);
+    if (cleanImage && isValidUrl(cleanImage)) {
+      params.append('line_items[0][price_data][product_data][images][0]', cleanImage);
+    }
     params.append('success_url', `${SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`);
     params.append('cancel_url', `${SITE_URL}/shop`);
     params.append('metadata[productId]', productId);
     params.append('metadata[quantity]', String(quantity));
     params.append('shipping_address_collection[allowed_countries][0]', 'US');
+    params.append('phone_number_collection[enabled]', 'true');
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
@@ -51,6 +70,7 @@ exports.handler = async (event) => {
 
     const session = await stripeRes.json();
     if (session.error) {
+      console.error('Stripe error:', session.error);
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: session.error.message }) };
     }
 
