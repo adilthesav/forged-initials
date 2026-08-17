@@ -109,12 +109,24 @@ exports.handler = async (event) => {
     const vidToUse = selectedVid || (prod && prod.cj_vid) || '';
     if (vidToUse && prod) {
       try {
-        const variants = prod.variants || [];
+        const variants = Array.isArray(prod.variants) ? prod.variants : [];
         const selectedVariant = variants.find(v => v.vid === vidToUse);
         const fromCountry = selectedVariant?.warehouseCountryCode || 'CN';
         await createCJOrder(vidToUse, quantity || '1', session, fromCountry);
       } catch (err) {
         console.error('CJ order failed:', err.message);
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const chatId = process.env.TELEGRAM_CHAT_ID;
+        if (botToken && chatId) {
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `⚠️ CJ ORDER FAILED\nProduct: ${prod?.name || productId}\nVid: ${vidToUse}\nError: ${err.message}\n\nManually place this order in CJ dashboard.`,
+            }),
+          }).catch(() => {});
+        }
       }
     }
 
