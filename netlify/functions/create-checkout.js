@@ -31,7 +31,7 @@ exports.handler = async (event) => {
     const { productId, productName, priceInCents, imageUrl, quantity = 1, selectedVid = '' } = JSON.parse(event.body);
 
     const checkRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,active`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,active,price_cents,variants,image_url,name`,
       { headers: { 'apikey': process.env.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
     );
     const [product] = await checkRes.json();
@@ -43,12 +43,22 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Out of stock' }) };
     }
 
+    // Always derive price server-side — never trust the client-supplied priceInCents
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const matchedVariant = selectedVid ? variants.find(v => v.vid === selectedVid) : null;
+    const trustedPrice = (matchedVariant?.price_cents ?? product.price_cents) || product.price_cents;
+
+    // Validate selectedVid actually belongs to this product
+    if (selectedVid && !matchedVariant) {
+      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid variant selected' }) };
+    }
+
     const params = new URLSearchParams();
     params.append('mode', 'payment');
     params.append('line_items[0][quantity]', String(quantity));
     params.append('line_items[0][price_data][currency]', 'usd');
-    params.append('line_items[0][price_data][unit_amount]', String(priceInCents));
-    params.append('line_items[0][price_data][product_data][name]', productName);
+    params.append('line_items[0][price_data][unit_amount]', String(trustedPrice));
+    params.append('line_items[0][price_data][product_data][name]', product.name || productName);
 
     const cleanImage = extractImageUrl(imageUrl);
     if (cleanImage && isValidUrl(cleanImage)) {
