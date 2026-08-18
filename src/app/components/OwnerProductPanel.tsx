@@ -35,7 +35,7 @@ interface CJVariant {
   variantNameEn: string;
   variantSellPrice: string | number;
   variantImage?: string;
-    warehouseCountryCode?: string;   // ← added
+  warehouseCountryCode?: string;
 }
 
 const toNum = (v: any): number => parseFloat(String(v ?? 0)) || 0;
@@ -82,6 +82,7 @@ function getSizeLabel(shortName: string, colorGroup: string): string {
   return after.replace(/\s*(Yards?)\s*/gi, '').replace(/^Size\s*/i, '').trim() || after;
 }
 
+// ── Variant Price Editor (shared by import + edit forms) ──────────────────────
 function VariantPriceEditor({
   variants,
   productName,
@@ -89,7 +90,7 @@ function VariantPriceEditor({
   onPriceChange,
   onBulkApply,
 }: {
-  variants: { vid: string; name: string; cj_cost?: number; variantSellPrice?: string | number }[];
+  variants: { vid: string; name: string; cj_cost?: number; variantSellPrice?: string | number; warehouseCountryCode?: string }[];
   productName: string;
   prices: Record<string, number>;
   onPriceChange: (vid: string, cents: number) => void;
@@ -97,6 +98,7 @@ function VariantPriceEditor({
 }) {
   const [bulkVal, setBulkVal] = useState('');
 
+  // Group by color
   const groups = new Map<string, typeof variants>();
   for (const v of variants) {
     const shortName = shortVariantName(v.name, productName);
@@ -107,6 +109,7 @@ function VariantPriceEditor({
 
   return (
     <div className="space-y-3">
+      {/* Bulk price setter */}
       <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
         <span className="text-xs text-stone-600 font-semibold whitespace-nowrap">Set all to:</span>
         <div className="flex items-center gap-1">
@@ -129,6 +132,7 @@ function VariantPriceEditor({
         </button>
       </div>
 
+      {/* Grouped variant rows */}
       <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
         {[...groups.entries()].map(([color, groupVars]) => (
           <div key={color}>
@@ -144,6 +148,11 @@ function VariantPriceEditor({
                 return (
                   <div key={v.vid} className="flex items-center gap-2 bg-stone-50 hover:bg-amber-50/50 rounded-lg px-3 py-2 transition-colors">
                     <span className="text-xs text-stone-700 flex-1 font-medium truncate">{size || shortName}</span>
+                    {v.warehouseCountryCode && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-stone-200 text-stone-500 whitespace-nowrap">
+                        {v.warehouseCountryCode === 'US' ? '🇺🇸 US' : '🇨🇳 CN'}
+                      </span>
+                    )}
                     {cjCost > 0 && (
                       <span className="text-[10px] text-stone-400 whitespace-nowrap">CJ ${cjCost.toFixed(2)}</span>
                     )}
@@ -169,28 +178,38 @@ function VariantPriceEditor({
   );
 }
 
+// ── ProductForm ──────────────────────────────────────────────────────────────
 function ProductForm({ initial, onSave, onCancel, saving }: {
   initial: Product; onSave: (p: Product) => void; onCancel: () => void; saving: boolean;
 }) {
   const [form, setForm] = useState<Product>(initial);
   const set = (k: keyof Product, v: any) => setForm(f => ({ ...f, [k]: v }));
+
   const hasVariants = Array.isArray(form.variants) && form.variants.length > 0;
 
   const updateVariantPrice = (vid: string, price_cents: number) => {
-    setForm(f => ({ ...f, variants: (f.variants || []).map(v => v.vid === vid ? { ...v, price_cents } : v) }));
+    setForm(f => ({
+      ...f,
+      variants: (f.variants || []).map(v => v.vid === vid ? { ...v, price_cents } : v),
+    }));
   };
 
   const applyBulkToVariants = (cents: number) => {
     if (!cents) return;
-    setForm(f => ({ ...f, variants: (f.variants || []).map(v => ({ ...v, price_cents: cents })) }));
+    setForm(f => ({
+      ...f,
+      variants: (f.variants || []).map(v => ({ ...v, price_cents: cents })),
+    }));
   };
 
+  // Build prices map for the editor
   const variantPricesMap: Record<string, number> = {};
   (form.variants || []).forEach(v => { variantPricesMap[v.vid] = v.price_cents || form.price_cents; });
 
   return (
     <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
       <h3 className="font-bold text-stone-800 text-sm">{form.id ? 'Edit Product' : 'Add New Product'}</h3>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Product Name *</label>
@@ -209,12 +228,14 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           </select>
         </div>
       </div>
+
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">Description</label>
         <textarea value={form.description} onChange={e => set('description', e.target.value)}
           placeholder="Describe the piece…" rows={2}
           className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 resize-none" />
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">
@@ -224,7 +245,9 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
             value={(form.price_cents / 100).toFixed(2)}
             onChange={e => set('price_cents', Math.round(parseFloat(e.target.value || '0') * 100))}
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
-          {hasVariants && <p className="text-[10px] text-stone-400 mt-0.5">Fallback if a variant has no price</p>}
+          {hasVariants && (
+            <p className="text-[10px] text-stone-400 mt-0.5">Used as fallback if a variant has no price set</p>
+          )}
         </div>
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Qty in Stock *</label>
@@ -233,6 +256,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         </div>
       </div>
+
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">Image URL</label>
         <input value={form.image_url} onChange={e => set('image_url', e.target.value)}
@@ -240,13 +264,15 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 h-20 w-20 object-cover rounded-lg border border-stone-200" />}
       </div>
+
+      {/* Variant price editor for existing products */}
       {hasVariants && (
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-2 block">
             Variant Prices ({form.variants!.length} variants)
           </label>
           <VariantPriceEditor
-            variants={(form.variants || []).map(v => ({ vid: v.vid, name: v.name, cj_cost: v.cj_cost }))}
+            variants={(form.variants || []).map(v => ({ vid: v.vid, name: v.name, cj_cost: v.cj_cost, warehouseCountryCode: (v as any).warehouseCountryCode }))}
             productName={form.name}
             prices={variantPricesMap}
             onPriceChange={updateVariantPrice}
@@ -254,11 +280,13 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           />
         </div>
       )}
+
       <div className="flex items-center gap-2">
         <input type="checkbox" id="active-toggle" checked={form.active}
           onChange={e => set('active', e.target.checked)} className="w-4 h-4 accent-amber-500" />
         <label htmlFor="active-toggle" className="text-xs font-semibold text-stone-600">Listed publicly</label>
       </div>
+
       <div className="flex gap-2 pt-1">
         <button onClick={() => onSave(form)} disabled={saving || !form.name || !form.price_cents}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
@@ -274,6 +302,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
   );
 }
 
+// ── CJImportPanel ────────────────────────────────────────────────────────────
 function CJImportPanel({ onImported }: { onImported: () => void }) {
   const [keyword, setKeyword] = useState('sterling silver jewelry');
   const [results, setResults] = useState<CJProduct[]>([]);
@@ -284,6 +313,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   const [selected, setSelected] = useState<CJProduct | null>(null);
   const [variants, setVariants] = useState<CJVariant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
+  // Per-variant prices: vid → price_cents
   const [variantPrices, setVariantPrices] = useState<Record<string, number>>({});
   const [category, setCategory] = useState('pendant');
   const [importing, setImporting] = useState(false);
@@ -312,10 +342,14 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
       const data = await cjFetch('variants', { pid: product.pid });
       const list: CJVariant[] = Array.isArray(data) ? data : [];
       setVariants(list);
-      const defaults: Record<string, number> = {};
-      list.forEach(v => { defaults[v.vid] = Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100); });
-      setVariantPrices(defaults);
+      // Default: 2.5× markup on each variant
+      const defaultPrices: Record<string, number> = {};
+      list.forEach(v => {
+        defaultPrices[v.vid] = Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100);
+      });
+      setVariantPrices(defaultPrices);
     } catch {
+      // Fallback default price from product sell price
       setVariantPrices({});
     }
     setLoadingVariants(false);
@@ -329,8 +363,11 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         product: {
           pid: selected.pid,
           name: selected.productNameEn,
-          description: variants.length > 0 ? `${variants.length} variants available — choose your size and style` : '',
+          description: variants.length > 0
+            ? `${variants.length} variants available — choose your size and style`
+            : '',
           image_url: selected.productImage,
+          // Base price = median or minimum of set prices
           price_cents: variants.length > 0
             ? Math.min(...variants.map(v => variantPrices[v.vid] || Math.ceil(toNum(selected.sellPrice) * 2.5 * 100)))
             : Math.ceil(toNum(selected.sellPrice) * 2.5 * 100),
@@ -340,7 +377,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             name: v.variantNameEn,
             cj_cost: toNum(v.variantSellPrice),
             price_cents: variantPrices[v.vid] || Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100),
-              warehouseCountryCode: v.warehouseCountryCode || 'CN',   // ← added
+            warehouseCountryCode: v.warehouseCountryCode || 'CN',
           })),
         },
       });
@@ -354,6 +391,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
     setImporting(false);
   };
 
+  // Live search type hint
   const detectType = (v: string) => {
     const t = v.trim();
     if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) return { label: 'CJ product URL', color: '#7c3aed' };
@@ -364,13 +402,18 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   };
   const typeHint = detectType(keyword);
 
+  // Price stats for summary
   const setPricesCount = variants.filter(v => (variantPrices[v.vid] || 0) > 0).length;
-  const setValues = variants.map(v => variantPrices[v.vid] || 0).filter(Boolean);
-  const minPrice = setValues.length ? Math.min(...setValues) : 0;
-  const maxPrice = setValues.length ? Math.max(...setValues) : 0;
+  const minPrice = variants.length > 0
+    ? Math.min(...variants.map(v => variantPrices[v.vid] || 0).filter(Boolean))
+    : 0;
+  const maxPrice = variants.length > 0
+    ? Math.max(...variants.map(v => variantPrices[v.vid] || 0))
+    : 0;
 
   return (
     <div className="space-y-4">
+      {/* Search bar */}
       <div className="space-y-1.5">
         <div className="flex gap-2">
           <input
@@ -410,8 +453,10 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
+      {/* Selected product detail + per-variant pricing */}
       {selected && (
         <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
+          {/* Product header */}
           <div className="flex items-start gap-3">
             <img src={selected.productImage} alt="" className="w-16 h-16 object-cover rounded-xl flex-shrink-0 border border-stone-100" />
             <div className="flex-1 min-w-0">
@@ -429,6 +474,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             </p>
           ) : (
             <>
+              {/* Category selector */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-stone-500 mb-1 block">Category</label>
@@ -440,24 +486,33 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                     <option value="other">Other</option>
                   </select>
                 </div>
+                {/* Price summary */}
                 {variants.length > 0 && setPricesCount > 0 && (
                   <div className="flex flex-col justify-center">
                     <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider">Price range</p>
                     <p className="text-sm font-bold" style={{ color: '#c9a84c' }}>
-                      {minPrice === maxPrice ? `$${(minPrice / 100).toFixed(2)}` : `$${(minPrice / 100).toFixed(2)} – $${(maxPrice / 100).toFixed(2)}`}
+                      {minPrice === maxPrice
+                        ? `$${(minPrice / 100).toFixed(2)}`
+                        : `$${(minPrice / 100).toFixed(2)} – $${(maxPrice / 100).toFixed(2)}`}
                     </p>
                     <p className="text-[10px] text-stone-400">{setPricesCount}/{variants.length} priced</p>
                   </div>
                 )}
               </div>
 
+              {/* Variant pricing */}
               {variants.length > 0 && (
                 <div>
                   <label className="text-xs font-semibold text-stone-500 mb-2 block">
                     Set prices per variant ({variants.length} total)
                   </label>
                   <VariantPriceEditor
-                    variants={variants.map(v => ({ vid: v.vid, name: v.variantNameEn, variantSellPrice: v.variantSellPrice }))}
+                    variants={variants.map(v => ({
+                      vid: v.vid,
+                      name: v.variantNameEn,
+                      variantSellPrice: v.variantSellPrice,
+                      warehouseCountryCode: v.warehouseCountryCode,
+                    }))}
                     productName={selected.productNameEn}
                     prices={variantPrices}
                     onPriceChange={(vid, cents) => setVariantPrices(p => ({ ...p, [vid]: cents }))}
@@ -475,7 +530,11 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
                 <Download className="w-3.5 h-3.5" />
-                {importing ? 'Importing…' : variants.length > 0 ? `Import with all ${variants.length} variants (saves as hidden)` : 'Import to My Shop (saves as hidden)'}
+                {importing
+                  ? 'Importing…'
+                  : variants.length > 0
+                    ? `Import with all ${variants.length} variants (saves as hidden)`
+                    : 'Import to My Shop (saves as hidden)'}
               </button>
               {variants.length > 0 && setPricesCount === 0 && (
                 <p className="text-xs text-amber-600">↑ Set at least one price above to import</p>
@@ -485,6 +544,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
+      {/* Results grid */}
       {!selected && results.length > 0 && (
         <>
           <p className="text-xs text-stone-400">{total.toLocaleString()} results — page {page}</p>
@@ -530,6 +590,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   );
 }
 
+// ── Main panel ───────────────────────────────────────────────────────────────
 export function OwnerProductPanel() {
   const [tab, setTab] = useState<'products' | 'cj'>('products');
   const [products, setProducts] = useState<Product[]>([]);
@@ -577,6 +638,7 @@ export function OwnerProductPanel() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/30 to-white pt-6 pb-20 px-4">
       <div className="max-w-4xl mx-auto">
+
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-stone-800">Product Management</h1>
@@ -587,6 +649,7 @@ export function OwnerProductPanel() {
           </button>
         </div>
 
+        {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-xl w-fit">
           {(['products', 'cj'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
@@ -666,19 +729,26 @@ export function OwnerProductPanel() {
                               )}
                             </div>
                             <div className="flex items-center gap-3 mt-1">
-                              {(() => {
-                                const vPrices = (product.variants || []).filter(v => v.price_cents).map(v => v.price_cents!);
-                                if (vPrices.length === 0) return (
-                                  <span className="text-sm font-bold" style={{ color: '#c9a84c' }}>${(product.price_cents / 100).toFixed(2)}</span>
+                              {/* Show price range if variants have per-variant prices */}
+                              {Array.isArray(product.variants) && product.variants.length > 0 ? (() => {
+                                const prices = product.variants!.filter(v => v.price_cents).map(v => v.price_cents!);
+                                if (prices.length === 0) return (
+                                  <span className="text-sm font-bold" style={{ color: '#c9a84c' }}>
+                                    ${(product.price_cents / 100).toFixed(2)}
+                                  </span>
                                 );
-                                const min = Math.min(...vPrices);
-                                const max = Math.max(...vPrices);
+                                const min = Math.min(...prices);
+                                const max = Math.max(...prices);
                                 return (
                                   <span className="text-sm font-bold" style={{ color: '#c9a84c' }}>
                                     {min === max ? `$${(min / 100).toFixed(2)}` : `$${(min / 100).toFixed(2)}–$${(max / 100).toFixed(2)}`}
                                   </span>
                                 );
-                              })()}
+                              })() : (
+                                <span className="text-sm font-bold" style={{ color: '#c9a84c' }}>
+                                  ${(product.price_cents / 100).toFixed(2)}
+                                </span>
+                              )}
                               <div className="flex items-center gap-1">
                                 <button onClick={() => handleStockChange(product, -1)}
                                   className="w-5 h-5 rounded bg-stone-100 text-stone-600 text-xs font-bold hover:bg-stone-200 flex items-center justify-center">−</button>
@@ -692,7 +762,8 @@ export function OwnerProductPanel() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button onClick={() => handleToggleActive(product)} title={product.active ? 'Hide' : 'Show'}
+                            <button onClick={() => handleToggleActive(product)}
+                              title={product.active ? 'Hide' : 'Show'}
                               className="p-1.5 rounded-lg hover:bg-stone-100 transition-all">
                               {product.active ? <Eye className="w-4 h-4 text-emerald-500" /> : <EyeOff className="w-4 h-4 text-stone-300" />}
                             </button>
