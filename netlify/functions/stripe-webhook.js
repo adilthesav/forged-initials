@@ -88,6 +88,7 @@ exports.handler = async (event) => {
       'Content-Type': 'application/json',
     };
 
+    // Fetch product + CJ fields
     let prod = null;
     if (productId) {
       const getRes = await fetch(
@@ -97,6 +98,7 @@ exports.handler = async (event) => {
       [prod] = await getRes.json();
     }
 
+    // Decrement stock
     if (prod) {
       const newQty = Math.max(0, prod.quantity_remaining - parseInt(quantity || '1'));
       await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${productId}`, {
@@ -106,12 +108,14 @@ exports.handler = async (event) => {
       });
     }
 
+    // Submit CJ order — use selectedVid from checkout, or fall back to product.cj_vid
     const vidToUse = selectedVid || (prod && prod.cj_vid) || '';
+    const variants = Array.isArray(prod?.variants) ? prod.variants : [];
+    const selectedVariant = variants.find(v => v.vid === vidToUse);
+    const fromCountry = selectedVariant?.warehouseCountryCode || 'CN';
+
     if (vidToUse && prod) {
       try {
-        const variants = Array.isArray(prod.variants) ? prod.variants : [];
-        const selectedVariant = variants.find(v => v.vid === vidToUse);
-        const fromCountry = selectedVariant?.warehouseCountryCode || 'CN';
         await createCJOrder(vidToUse, quantity || '1', session, fromCountry);
       } catch (err) {
         console.error('CJ order failed:', err.message);
@@ -123,26 +127,52 @@ exports.handler = async (event) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text: `⚠️ CJ ORDER FAILED\nProduct: ${prod?.name || productId}\nVid: ${vidToUse}\nError: ${err.message}\n\nManually place this order in CJ dashboard.`,
+              text: `⚠️ CJ ORDER FAILED\nProduct: ${prod?.name || productId}\nVariant: ${selectedVariant?.name || vidToUse}\nError: ${err.message}\n\nLog into CJ dashboard and place manually.`,
             }),
           }).catch(() => {});
         }
       }
     }
 
+    // Telegram sale notification — full details
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
       const amount = ((session.amount_total || 0) / 100).toFixed(2);
-      const city = session.shipping_details?.address?.city || '';
+      const addr = session.shipping_details?.address || {};
+      const customerName = session.shipping_details?.name || session.customer_details?.name || '';
+      const email = session.customer_details?.email || '';
+      const phone = session.customer_details?.phone || '';
+      const qty = parseInt(quantity || '1');
+      const variantName = selectedVariant?.name || '';
+      const orderNum = `FI-${Date.now()}`;
+
+      const fullAddress = [
+        addr.line1,
+        addr.line2,
+        addr.city && addr.state ? `${addr.city}, ${addr.state} ${addr.postal_code || ''}` : addr.city || '',
+        addr.country || '',
+      ].filter(Boolean).join('\n');
+
       const msg = [
-        '💰 NEW SALE!',
-        '',
-        `Product: ${prod?.name || productId || 'unknown'}`,
-        `Amount: $${amount}`,
-        `Customer: ${session.customer_details?.email || 'N/A'}`,
-        city ? `Ships to: ${city}` : '',
-        vidToUse ? `CJ vid: ${vidToUse}` : '',
+        '💰 NEW SALE — Forged Initials',
+        '─────────────────',
+        `🛍  Product: ${prod?.name || productId || 'Unknown'}`,
+        variantName ? `📐 Variant: ${variantName}` : '',
+        `🔢 Qty: ${qty}`,
+        `💵 Amount: $${amount}`,
+        '─────────────────',
+        '👤 Customer',
+        customerName ? `   Name: ${customerName}` : '',
+        email ? `   Email: ${email}` : '',
+        phone ? `   Phone: ${phone}` : '',
+        '─────────────────',
+        '📦 Ship To',
+        fullAddress ? fullAddress.split('\n').map(l => `   ${l}`).join('\n') : '   (no address)',
+        '─────────────────',
+        `🏭 Warehouse: ${fromCountry}`,
+        vidToUse ? `🔑 CJ vid: ${vidToUse}` : '',
+        `🧾 Order #: ${orderNum}`,
       ].filter(Boolean).join('\n');
 
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
