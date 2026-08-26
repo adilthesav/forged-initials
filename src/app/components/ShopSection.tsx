@@ -62,19 +62,24 @@ function buildGroups(variants: Variant[], productName: string): Map<string, Vari
   return map;
 }
 
+// ── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const [selectedVid, setSelectedVid] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [buying, setBuying] = useState(false);
 
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const groups = hasVariants ? buildGroups(product.variants!, product.name) : new Map<string, VariantGroup>();
   const colorKeys = [...groups.keys()];
 
+  // Default to first color group on open; reset quantity
   useEffect(() => {
     if (colorKeys.length > 0) setSelectedColor(colorKeys[0]);
+    setQuantity(1);
   }, [product.id]);
 
+  // Lock scroll + ESC
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -86,6 +91,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const selectedVariant = product.variants?.find(v => v.vid === selectedVid);
   const currentPrice = selectedVariant?.price_cents ?? product.price_cents;
   const soldOut = product.quantity_remaining === 0;
+  const maxQty = Math.max(1, product.quantity_remaining);
   const canBuy = !soldOut && (!hasVariants || !!selectedVid);
 
   const allPrices = hasVariants
@@ -107,7 +113,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
           productName: product.name,
           priceInCents: currentPrice,
           imageUrl: product.image_url,
-          quantity: 1,
+          quantity,
           selectedVid: selectedVid || '',
         }),
       });
@@ -130,6 +136,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
         className="bg-white w-full sm:max-w-2xl sm:rounded-3xl overflow-hidden flex flex-col sm:flex-row"
         style={{ maxHeight: '95vh' }}
       >
+        {/* ── Left: Image ── */}
         <div className="relative sm:w-5/12 flex-shrink-0 bg-stone-100">
           <div className="w-full aspect-square sm:h-full sm:aspect-auto relative">
             {product.image_url ? (
@@ -148,7 +155,10 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
           </button>
         </div>
 
+        {/* ── Right: Details ── */}
         <div className="flex-1 overflow-y-auto flex flex-col p-5 sm:p-7 gap-4">
+
+          {/* Category + Stock */}
           <div className="flex items-center justify-between">
             <span
               className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full capitalize"
@@ -167,6 +177,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             )}
           </div>
 
+          {/* Name + description */}
           <div>
             <h2 className="text-xl font-bold text-stone-800 leading-snug">{product.name}</h2>
             {product.description && (
@@ -174,13 +185,17 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             )}
           </div>
 
+          {/* Divider */}
           <div className="border-t border-stone-100" />
 
+          {/* Variant selector */}
           {hasVariants && colorKeys.length > 0 && (
             <div className="space-y-4">
               {colorKeys.length > 1 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Color / Style</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">
+                    Color / Style
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {colorKeys.map(color => (
                       <button
@@ -212,6 +227,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                     {variantsInColor.map(({ variant, size }) => {
                       const vPrice = variant.price_cents || product.price_cents;
                       const isActive = selectedVid === variant.vid;
+                      const showPrice = pricesVary;
                       return (
                         <button
                           key={variant.vid}
@@ -222,7 +238,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                             : { background: 'white', color: '#57534e', border: '1px solid #e7e5e4' }}
                         >
                           <span>{size || '—'}</span>
-                          {pricesVary && (
+                          {showPrice && (
                             <span className="text-[9px] opacity-70 leading-tight">${(vPrice / 100).toFixed(2)}</span>
                           )}
                         </button>
@@ -237,13 +253,43 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             </div>
           )}
 
+          {/* Quantity selector */}
+          {!soldOut && (
+            <div className="flex items-center gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 whitespace-nowrap">Qty</p>
+              <div className="flex items-center gap-1 bg-stone-50 rounded-xl border border-stone-200 p-1">
+                <button
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center text-stone-700 font-bold text-base hover:bg-amber-50 disabled:opacity-30 transition-all"
+                >−</button>
+                <span className="w-8 text-center text-sm font-bold text-stone-800 tabular-nums">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
+                  disabled={quantity >= maxQty}
+                  className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center text-stone-700 font-bold text-base hover:bg-amber-50 disabled:opacity-30 transition-all"
+                >+</button>
+              </div>
+              {product.quantity_remaining <= 10 && (
+                <span className="text-[10px] text-stone-400">{product.quantity_remaining} available</span>
+              )}
+            </div>
+          )}
+
+          {/* Spacer */}
           <div className="flex-1 min-h-4" />
 
+          {/* Price + Buy */}
           <div className="space-y-3">
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-3xl font-bold" style={{ color: '#c9a84c' }}>
                 ${(currentPrice / 100).toFixed(2)}
               </span>
+              {quantity > 1 && (
+                <span className="text-sm font-semibold text-stone-500">
+                  × {quantity} = <span style={{ color: '#c9a84c' }}>${((currentPrice * quantity) / 100).toFixed(2)}</span>
+                </span>
+              )}
               {hasVariants && !selectedVid && pricesVary && (
                 <span className="text-sm text-stone-400">— prices vary by size</span>
               )}
@@ -261,7 +307,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                 boxShadow: '0 4px 18px rgba(201,168,76,0.38)',
               }}
             >
-              {buying ? 'Loading…' : soldOut ? 'Sold Out' : hasVariants && !selectedVid ? 'Select a Size to Continue' : 'Buy Now →'}
+              {buying ? 'Loading…' : soldOut ? 'Sold Out' : hasVariants && !selectedVid ? 'Select a Size to Continue' : quantity > 1 ? `Buy ${quantity} → $${((currentPrice * quantity) / 100).toFixed(2)}` : 'Buy Now →'}
             </button>
 
             <p className="text-[10px] text-center text-stone-400 leading-relaxed">
@@ -274,6 +320,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   );
 }
 
+// ── Product Card (clean — no pills) ──────────────────────────────────────────
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const soldOut = product.quantity_remaining === 0;
@@ -312,14 +359,18 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
             <ShoppingBag className="w-12 h-12 text-stone-200" />
           </div>
         )}
+
         <span
           className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full capitalize"
           style={{ background: 'rgba(201,168,76,0.9)', color: '#2a1800' }}
         >
           {product.category}
         </span>
+
         {soldOut ? (
-          <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-700 text-white">Sold Out</span>
+          <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-700 text-white">
+            Sold Out
+          </span>
         ) : product.quantity_remaining <= 5 ? (
           <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white flex items-center gap-1">
             <AlertTriangle className="w-2.5 h-2.5" /> Only {product.quantity_remaining} left
@@ -331,12 +382,20 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
         <h3 className="font-bold text-stone-800 text-sm sm:text-base leading-snug group-hover:text-amber-800 transition-colors line-clamp-2">
           {product.name}
         </h3>
+
         {hasVariants && (
-          <p className="text-[11px] text-stone-400 font-medium">{product.variants!.length} styles available</p>
+          <p className="text-[11px] text-stone-400 font-medium">
+            {product.variants!.length} styles available
+          </p>
         )}
+
         <div className="flex items-center justify-between mt-auto pt-2">
-          <span className="text-base font-bold" style={{ color: '#c9a84c' }}>{priceLabel}</span>
-          <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 transition-colors">View →</span>
+          <span className="text-base font-bold" style={{ color: '#c9a84c' }}>
+            {priceLabel}
+          </span>
+          <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 transition-colors">
+            View →
+          </span>
         </div>
       </div>
     </div>
@@ -359,6 +418,7 @@ function SkeletonCard() {
   );
 }
 
+// ── Shop Section ──────────────────────────────────────────────────────────────
 export function ShopSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -418,9 +478,11 @@ export function ShopSection() {
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className="whitespace-nowrap px-4 py-2 rounded-full text-xs font-semibold border transition-all duration-200"
-                  style={activeCategory === cat
-                    ? { background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800', border: '1px solid rgba(201,168,76,0.4)', boxShadow: '0 2px 8px rgba(201,168,76,0.3)' }
-                    : { background: 'white', color: '#78716c', border: '1px solid #e7e5e4' }}
+                  style={
+                    activeCategory === cat
+                      ? { background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800', border: '1px solid rgba(201,168,76,0.4)', boxShadow: '0 2px 8px rgba(201,168,76,0.3)' }
+                      : { background: 'white', color: '#78716c', border: '1px solid #e7e5e4' }
+                  }
                 >
                   {cat}
                 </button>
