@@ -88,7 +88,6 @@ exports.handler = async (event) => {
       'Content-Type': 'application/json',
     };
 
-    // Fetch product + CJ fields
     let prod = null;
     if (productId) {
       const getRes = await fetch(
@@ -98,7 +97,6 @@ exports.handler = async (event) => {
       [prod] = await getRes.json();
     }
 
-    // Decrement stock
     if (prod) {
       const newQty = Math.max(0, prod.quantity_remaining - parseInt(quantity || '1'));
       await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${productId}`, {
@@ -108,7 +106,6 @@ exports.handler = async (event) => {
       });
     }
 
-    // Submit CJ order — use selectedVid from checkout, or fall back to product.cj_vid
     const vidToUse = selectedVid || (prod && prod.cj_vid) || '';
     const variants = Array.isArray(prod?.variants) ? prod.variants : [];
     const selectedVariant = variants.find(v => v.vid === vidToUse);
@@ -127,14 +124,13 @@ exports.handler = async (event) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text: `⚠️ CJ ORDER FAILED\nProduct: ${prod?.name || productId}\nVariant: ${selectedVariant?.name || vidToUse}\nError: ${err.message}\n\nLog into CJ dashboard and place manually.`,
+              text: `⚠️ CJ ORDER FAILED\nProduct: ${prod?.name || productId}\nSPU (cj_pid): ${prod?.cj_pid || '—'}\nVariant: ${selectedVariant?.name || vidToUse}\nVID (SKU): ${vidToUse || '—'}\nQty: ${quantity || '1'}\nError: ${err.message}\n\nLog into CJ dashboard and place manually.`,
             }),
           }).catch(() => {});
         }
       }
     }
 
-    // Telegram sale notification — full details
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
@@ -171,7 +167,8 @@ exports.handler = async (event) => {
         fullAddress ? fullAddress.split('\n').map(l => `   ${l}`).join('\n') : '   (no address)',
         '─────────────────',
         `🏭 Warehouse: ${fromCountry}`,
-        vidToUse ? `🔑 CJ vid: ${vidToUse}` : '',
+        prod?.cj_pid ? `📦 SPU (cj_pid): ${prod.cj_pid}` : '',
+        vidToUse ? `🔑 VID (SKU): ${vidToUse}` : '',
         `🧾 Order #: ${orderNum}`,
       ].filter(Boolean).join('\n');
 
