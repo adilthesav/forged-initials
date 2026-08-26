@@ -82,7 +82,7 @@ function getSizeLabel(shortName: string, colorGroup: string): string {
   return after.replace(/\s*(Yards?)\s*/gi, '').replace(/^Size\s*/i, '').trim() || after;
 }
 
-// ── Variant Price Editor (shared by import + edit forms) ──────────────────────
+// ── Variant Price Editor ──────────────────────────────────────────────────────
 function VariantPriceEditor({
   variants,
   productName,
@@ -98,7 +98,6 @@ function VariantPriceEditor({
 }) {
   const [bulkVal, setBulkVal] = useState('');
 
-  // Group by color
   const groups = new Map<string, typeof variants>();
   for (const v of variants) {
     const shortName = shortVariantName(v.name, productName);
@@ -109,7 +108,6 @@ function VariantPriceEditor({
 
   return (
     <div className="space-y-3">
-      {/* Bulk price setter */}
       <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
         <span className="text-xs text-stone-600 font-semibold whitespace-nowrap">Set all to:</span>
         <div className="flex items-center gap-1">
@@ -132,7 +130,6 @@ function VariantPriceEditor({
         </button>
       </div>
 
-      {/* Grouped variant rows */}
       <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
         {[...groups.entries()].map(([color, groupVars]) => (
           <div key={color}>
@@ -147,7 +144,10 @@ function VariantPriceEditor({
                 const priceCents = prices[v.vid] || 0;
                 return (
                   <div key={v.vid} className="flex items-center gap-2 bg-stone-50 hover:bg-amber-50/50 rounded-lg px-3 py-2 transition-colors">
-                    <span className="text-xs text-stone-700 flex-1 font-medium truncate">{size || shortName}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-stone-700 font-medium truncate block">{size || shortName}</span>
+                      <span className="text-[9px] font-mono text-stone-300 truncate block select-all" title="CJ Variant ID (VID/SKU)">{v.vid}</span>
+                    </div>
                     {v.warehouseCountryCode && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-stone-200 text-stone-500 whitespace-nowrap">
                         {v.warehouseCountryCode === 'US' ? '🇺🇸 US' : '🇨🇳 CN'}
@@ -202,7 +202,6 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
     }));
   };
 
-  // Build prices map for the editor
   const variantPricesMap: Record<string, number> = {};
   (form.variants || []).forEach(v => { variantPricesMap[v.vid] = v.price_cents || form.price_cents; });
 
@@ -265,7 +264,6 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
         {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 h-20 w-20 object-cover rounded-lg border border-stone-200" />}
       </div>
 
-      {/* Variant price editor for existing products */}
       {hasVariants && (
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-2 block">
@@ -313,7 +311,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   const [selected, setSelected] = useState<CJProduct | null>(null);
   const [variants, setVariants] = useState<CJVariant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
-  // Per-variant prices: vid → price_cents
   const [variantPrices, setVariantPrices] = useState<Record<string, number>>({});
   const [category, setCategory] = useState('pendant');
   const [importing, setImporting] = useState(false);
@@ -342,14 +339,12 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
       const data = await cjFetch('variants', { pid: product.pid });
       const list: CJVariant[] = Array.isArray(data) ? data : [];
       setVariants(list);
-      // Default: 2.5× markup on each variant
       const defaultPrices: Record<string, number> = {};
       list.forEach(v => {
         defaultPrices[v.vid] = Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100);
       });
       setVariantPrices(defaultPrices);
     } catch {
-      // Fallback default price from product sell price
       setVariantPrices({});
     }
     setLoadingVariants(false);
@@ -367,7 +362,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             ? `${variants.length} variants available — choose your size and style`
             : '',
           image_url: selected.productImage,
-          // Base price = median or minimum of set prices
           price_cents: variants.length > 0
             ? Math.min(...variants.map(v => variantPrices[v.vid] || Math.ceil(toNum(selected.sellPrice) * 2.5 * 100)))
             : Math.ceil(toNum(selected.sellPrice) * 2.5 * 100),
@@ -391,7 +385,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
     setImporting(false);
   };
 
-  // Live search type hint
   const detectType = (v: string) => {
     const t = v.trim();
     if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) return { label: 'CJ product URL', color: '#7c3aed' };
@@ -402,7 +395,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   };
   const typeHint = detectType(keyword);
 
-  // Price stats for summary
   const setPricesCount = variants.filter(v => (variantPrices[v.vid] || 0) > 0).length;
   const minPrice = variants.length > 0
     ? Math.min(...variants.map(v => variantPrices[v.vid] || 0).filter(Boolean))
@@ -413,7 +405,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
 
   return (
     <div className="space-y-4">
-      {/* Search bar */}
       <div className="space-y-1.5">
         <div className="flex gap-2">
           <input
@@ -453,15 +444,14 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
-      {/* Selected product detail + per-variant pricing */}
       {selected && (
         <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
-          {/* Product header */}
           <div className="flex items-start gap-3">
             <img src={selected.productImage} alt="" className="w-16 h-16 object-cover rounded-xl flex-shrink-0 border border-stone-100" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-stone-800 text-sm leading-snug">{selected.productNameEn}</p>
               <p className="text-xs text-stone-400 mt-0.5">CJ base: ${toNum(selected.sellPrice).toFixed(2)}</p>
+              <p className="text-[10px] font-mono text-stone-400 mt-0.5 select-all">SPU: {selected.pid}</p>
             </div>
             <button onClick={() => setSelected(null)} className="p-1 rounded hover:bg-stone-100 flex-shrink-0">
               <X className="w-4 h-4 text-stone-400" />
@@ -474,7 +464,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             </p>
           ) : (
             <>
-              {/* Category selector */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-stone-500 mb-1 block">Category</label>
@@ -486,7 +475,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                     <option value="other">Other</option>
                   </select>
                 </div>
-                {/* Price summary */}
                 {variants.length > 0 && setPricesCount > 0 && (
                   <div className="flex flex-col justify-center">
                     <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider">Price range</p>
@@ -500,7 +488,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                 )}
               </div>
 
-              {/* Variant pricing */}
               {variants.length > 0 && (
                 <div>
                   <label className="text-xs font-semibold text-stone-500 mb-2 block">
@@ -544,7 +531,6 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
-      {/* Results grid */}
       {!selected && results.length > 0 && (
         <>
           <p className="text-xs text-stone-400">{total.toLocaleString()} results — page {page}</p>
@@ -557,7 +543,8 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                 </div>
                 <div className="p-2.5">
                   <p className="text-xs font-medium text-stone-700 line-clamp-2 leading-snug mb-1">{p.productNameEn}</p>
-                  <p className="text-[10px] font-bold mb-2" style={{ color: '#c9a84c' }}>CJ: ${toNum(p.sellPrice).toFixed(2)}</p>
+                  <p className="text-[10px] font-bold mb-1" style={{ color: '#c9a84c' }}>CJ: ${toNum(p.sellPrice).toFixed(2)}</p>
+                  <p className="text-[9px] font-mono text-stone-300 mb-2 truncate select-all">{p.pid}</p>
                   <button onClick={() => selectProduct(p)}
                     className="w-full py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
@@ -649,7 +636,6 @@ export function OwnerProductPanel() {
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-xl w-fit">
           {(['products', 'cj'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
@@ -728,8 +714,12 @@ export function OwnerProductPanel() {
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-400">Hidden</span>
                               )}
                             </div>
+                            {product.cj_pid && (
+                              <p className="text-[10px] font-mono text-stone-400 mt-0.5 leading-tight">
+                                <span className="text-stone-300">SPU:</span> <span className="text-stone-500 select-all">{product.cj_pid}</span>
+                              </p>
+                            )}
                             <div className="flex items-center gap-3 mt-1">
-                              {/* Show price range if variants have per-variant prices */}
                               {Array.isArray(product.variants) && product.variants.length > 0 ? (() => {
                                 const prices = product.variants!.filter(v => v.price_cents).map(v => v.price_cents!);
                                 if (prices.length === 0) return (
