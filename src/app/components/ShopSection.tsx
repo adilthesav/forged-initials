@@ -63,7 +63,6 @@ function buildGroups(variants: Variant[], productName: string): Map<string, Vari
   return map;
 }
 
-// ── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const [selectedVid, setSelectedVid] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -103,6 +102,20 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const handleBuy = async () => {
     if (!canBuy || buying) return;
     setBuying(true);
+
+    // Shopify-sourced products → Shopify checkout (triggers CJ auto-fulfillment)
+    if (product.source === 'shopify') {
+      const variantId = selectedVid || product.variants?.[0]?.vid || '';
+      if (!variantId) {
+        alert('Please select a variant to continue.');
+        setBuying(false);
+        return;
+      }
+      window.location.href = `https://forged-initials-storefront.myshopify.com/cart/${variantId}:${quantity}`;
+      return;
+    }
+
+    // Supabase products → Stripe checkout
     try {
       const res = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
@@ -135,7 +148,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
         className="bg-white w-full sm:max-w-2xl sm:rounded-3xl overflow-hidden flex flex-col sm:flex-row"
         style={{ maxHeight: '95vh' }}
       >
-        {/* ── Left: Image ── */}
         <div className="relative sm:w-5/12 flex-shrink-0 bg-stone-100">
           <div className="w-full aspect-square sm:h-full sm:aspect-auto relative">
             {product.image_url ? (
@@ -154,10 +166,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
           </button>
         </div>
 
-        {/* ── Right: Details ── */}
         <div className="flex-1 overflow-y-auto flex flex-col p-5 sm:p-7 gap-4">
-
-          {/* Category + Stock */}
           <div className="flex items-center justify-between">
             <span
               className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full capitalize"
@@ -176,7 +185,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             )}
           </div>
 
-          {/* Name + description */}
           <div>
             <h2 className="text-xl font-bold text-stone-800 leading-snug">{product.name}</h2>
             {product.description && (
@@ -184,10 +192,8 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             )}
           </div>
 
-          {/* Divider */}
           <div className="border-t border-stone-100" />
 
-          {/* Variant selector */}
           {hasVariants && colorKeys.length > 0 && (
             <div className="space-y-4">
               {colorKeys.length > 1 && (
@@ -252,7 +258,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             </div>
           )}
 
-          {/* Quantity selector */}
           {!soldOut && (
             <div className="flex items-center gap-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 whitespace-nowrap">Qty</p>
@@ -277,7 +282,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
 
           <div className="flex-1 min-h-4" />
 
-          {/* Price + Buy */}
           <div className="space-y-3">
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-3xl font-bold" style={{ color: '#c9a84c' }}>
@@ -309,7 +313,9 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             </button>
 
             <p className="text-[10px] text-center text-stone-400 leading-relaxed">
-              925 Sterling Silver · Ships 5–7 business days · Houston, TX
+              {product.source === 'shopify'
+                ? '18k gold-plated stainless steel · Fulfilled by CJ · Ships 7–15 days'
+                : '18k gold-plated stainless steel · Ships 5–7 business days · Houston, TX'}
             </p>
           </div>
         </div>
@@ -318,7 +324,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   );
 }
 
-// ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const soldOut = product.quantity_remaining === 0;
@@ -416,7 +421,6 @@ function SkeletonCard() {
   );
 }
 
-// ── Shop Section ──────────────────────────────────────────────────────────────
 export function ShopSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -441,7 +445,6 @@ export function ShopSection() {
         : [];
 
       const shopifyRaw = shopifyResult.status === 'fulfilled' ? (shopifyResult.value.products || []) : [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
         id: `shopify_${p.shopify_id}`,
         name: p.name,
@@ -487,7 +490,7 @@ export function ShopSection() {
               Shop Our Collection
             </h2>
             <p className="text-stone-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-              Handcrafted 925 sterling silver jewelry — each piece made with care. Stock is limited, order while available.
+              Waterproof. Tarnish-free. Hypoallergenic. Premium stainless steel jewelry built to last — stock is limited.
             </p>
           </div>
 
@@ -551,7 +554,7 @@ export function ShopSection() {
             <div className="mt-10 text-center">
               <p className="text-stone-400 text-xs flex items-center justify-center gap-1.5">
                 <Tag className="w-3 h-3" />
-                All pieces are 925 sterling silver · Houston, TX · $10 FedEx Ground shipping
+                18k gold-plated stainless steel · Waterproof · Houston, TX · $10 FedEx Ground shipping
               </p>
             </div>
           )}
