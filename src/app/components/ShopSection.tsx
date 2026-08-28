@@ -22,6 +22,7 @@ interface Product {
   quantity_remaining: number;
   active: boolean;
   variants?: Variant[];
+  source?: 'supabase' | 'shopify';
 }
 
 const CATS = ['All', 'Rings', 'Pendants', 'Earrings', 'Other'];
@@ -73,13 +74,11 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const groups = hasVariants ? buildGroups(product.variants!, product.name) : new Map<string, VariantGroup>();
   const colorKeys = [...groups.keys()];
 
-  // Default to first color group on open; reset quantity
   useEffect(() => {
     if (colorKeys.length > 0) setSelectedColor(colorKeys[0]);
     setQuantity(1);
   }, [product.id]);
 
-  // Lock scroll + ESC
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -276,7 +275,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             </div>
           )}
 
-          {/* Spacer */}
           <div className="flex-1 min-h-4" />
 
           {/* Price + Buy */}
@@ -320,7 +318,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   );
 }
 
-// ── Product Card (clean — no pills) ──────────────────────────────────────────
+// ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const soldOut = product.quantity_remaining === 0;
@@ -430,12 +428,34 @@ export function ShopSection() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?active=eq.true&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
-        { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
-      );
-      const data = await res.json();
-      setProducts(Array.isArray(data) ? data : []);
+      const [supaResult, shopifyResult] = await Promise.allSettled([
+        fetch(
+          `${SUPABASE_URL}/rest/v1/products?active=eq.true&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
+          { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+        ).then(r => r.json()),
+        fetch('/.netlify/functions/shopify-products').then(r => r.json()),
+      ]);
+
+      const supaProducts: Product[] = supaResult.status === 'fulfilled' && Array.isArray(supaResult.value)
+        ? supaResult.value
+        : [];
+
+      const shopifyRaw = shopifyResult.status === 'fulfilled' ? (shopifyResult.value.products || []) : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
+        id: `shopify_${p.shopify_id}`,
+        name: p.name,
+        description: p.description,
+        price_cents: p.price_cents,
+        image_url: p.image_url,
+        category: p.category || 'other',
+        quantity_remaining: p.variants?.reduce((sum: number, v: any) => sum + (v.inventory_quantity || 0), 0) || 999,
+        active: true,
+        source: 'shopify' as const,
+        variants: p.variants,
+      }));
+
+      setProducts([...supaProducts, ...shopifyProducts]);
     } catch {
       setError('Could not load products. Please refresh.');
     } finally {
