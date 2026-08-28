@@ -22,6 +22,11 @@ interface Product {
   variants?: Variant[];
 }
 
+interface CJProductDetail {
+  pid: string;
+  productNameEn: string;
+}
+
 interface CJProduct {
   pid: string;
   productNameEn: string;
@@ -183,6 +188,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
   initial: Product; onSave: (p: Product) => void; onCancel: () => void; saving: boolean;
 }) {
   const [form, setForm] = useState<Product>(initial);
+  const [spuLookup, setSpuLookup] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; name?: string }>({ status: 'idle' });
   const set = (k: keyof Product, v: any) => setForm(f => ({ ...f, [k]: v }));
 
   const hasVariants = Array.isArray(form.variants) && form.variants.length > 0;
@@ -200,6 +206,23 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
       ...f,
       variants: (f.variants || []).map(v => ({ ...v, price_cents: cents })),
     }));
+  };
+
+  const verifySPU = async () => {
+    if (!form.cj_pid?.trim()) return;
+    setSpuLookup({ status: 'loading' });
+    try {
+      const data = await cjFetch('search', { keyword: form.cj_pid.trim() });
+      const match = data.list?.[0];
+      if (match?.pid) {
+        set('cj_pid', match.pid);
+        setSpuLookup({ status: 'ok', name: match.productNameEn });
+      } else {
+        setSpuLookup({ status: 'error' });
+      }
+    } catch {
+      setSpuLookup({ status: 'error' });
+    }
   };
 
   const variantPricesMap: Record<string, number> = {};
@@ -262,6 +285,44 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           placeholder="https://…"
           className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 h-20 w-20 object-cover rounded-lg border border-stone-200" />}
+      </div>
+
+      {/* CJ SPU field — editable + verify button */}
+      <div>
+        <label className="text-xs font-semibold text-stone-500 mb-1 block">
+          CJ SPU (Product ID)
+          <span className="ml-1 font-normal text-stone-400">— paste from CJ dashboard or product URL</span>
+        </label>
+        <div className="flex gap-2">
+          <input
+            value={form.cj_pid || ''}
+            onChange={e => { set('cj_pid', e.target.value); setSpuLookup({ status: 'idle' }); }}
+            placeholder="e.g. 562936070697 or paste a CJ URL"
+            className="flex-1 px-3 py-2 text-sm font-mono border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
+          />
+          <button
+            type="button"
+            onClick={verifySPU}
+            disabled={!form.cj_pid?.trim() || spuLookup.status === 'loading'}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 transition-all whitespace-nowrap"
+          >
+            {spuLookup.status === 'loading'
+              ? <><RefreshCw className="w-3 h-3 animate-spin" /> Checking…</>
+              : <><Search className="w-3 h-3" /> Verify from CJ</>}
+          </button>
+        </div>
+        {spuLookup.status === 'ok' && (
+          <p className="text-[11px] text-emerald-600 mt-1 font-medium">
+            ✓ Confirmed: <span className="font-normal">{spuLookup.name}</span>
+            <span className="ml-1.5 text-emerald-500 font-mono">{form.cj_pid}</span>
+          </p>
+        )}
+        {spuLookup.status === 'error' && (
+          <p className="text-[11px] text-red-500 mt-1">⚠ Not found on CJ — check the ID and try again</p>
+        )}
+        <p className="text-[10px] text-stone-400 mt-0.5">
+          Find it in CJ dashboard → Products → click product → copy the numeric ID from the URL or product page
+        </p>
       </div>
 
       {hasVariants && (
