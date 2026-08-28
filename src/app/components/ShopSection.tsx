@@ -103,7 +103,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
     if (!canBuy || buying) return;
     setBuying(true);
 
-    // Shopify-sourced products → Shopify checkout (triggers CJ auto-fulfillment)
     if (product.source === 'shopify') {
       const variantId = selectedVid || product.variants?.[0]?.vid || '';
       if (!variantId) {
@@ -111,11 +110,10 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
         setBuying(false);
         return;
       }
-      window.location.href = `https://forged-initials-storefront.myshopify.com/cart/${variantId}:${quantity}`;
+      window.location.href = `https://shop.forged-initials.com/cart/${variantId}:${quantity}`;
       return;
     }
 
-    // Supabase products → Stripe checkout
     try {
       const res = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
@@ -198,9 +196,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             <div className="space-y-4">
               {colorKeys.length > 1 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">
-                    Color / Style
-                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Color / Style</p>
                   <div className="flex flex-wrap gap-2">
                     {colorKeys.map(color => (
                       <button
@@ -232,7 +228,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                     {variantsInColor.map(({ variant, size }) => {
                       const vPrice = variant.price_cents || product.price_cents;
                       const isActive = selectedVid === variant.vid;
-                      const showPrice = pricesVary;
                       return (
                         <button
                           key={variant.vid}
@@ -243,7 +238,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                             : { background: 'white', color: '#57534e', border: '1px solid #e7e5e4' }}
                         >
                           <span>{size || '—'}</span>
-                          {showPrice && (
+                          {pricesVary && (
                             <span className="text-[9px] opacity-70 leading-tight">${(vPrice / 100).toFixed(2)}</span>
                           )}
                         </button>
@@ -385,20 +380,14 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
         <h3 className="font-bold text-stone-800 text-sm sm:text-base leading-snug group-hover:text-amber-800 transition-colors line-clamp-2">
           {product.name}
         </h3>
-
         {hasVariants && (
           <p className="text-[11px] text-stone-400 font-medium">
             {product.variants!.length} styles available
           </p>
         )}
-
         <div className="flex items-center justify-between mt-auto pt-2">
-          <span className="text-base font-bold" style={{ color: '#c9a84c' }}>
-            {priceLabel}
-          </span>
-          <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 transition-colors">
-            View →
-          </span>
+          <span className="text-base font-bold" style={{ color: '#c9a84c' }}>{priceLabel}</span>
+          <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 transition-colors">View →</span>
         </div>
       </div>
     </div>
@@ -441,8 +430,7 @@ export function ShopSection() {
       ]);
 
       const supaProducts: Product[] = supaResult.status === 'fulfilled' && Array.isArray(supaResult.value)
-        ? supaResult.value
-        : [];
+        ? supaResult.value : [];
 
       const shopifyRaw = shopifyResult.status === 'fulfilled' ? (shopifyResult.value.products || []) : [];
       const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
