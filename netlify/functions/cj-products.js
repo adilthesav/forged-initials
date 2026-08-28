@@ -15,9 +15,16 @@ function extractImageUrl(raw) {
 
 function detectSearchType(input) {
   const t = input.trim();
-  const urlMatch = t.match(/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i);
+  // CJ product URL → extract pid from URL
+  const urlMatch = t.match(/cjdropshipping\.com\/product\/.+-p-(\w+)\.html/i);
   if (urlMatch) return { type: 'pid', value: urlMatch[1] };
-  if (/^CJ[A-Z0-9]{5,}$/i.test(t)) return { type: 'sku', value: t };
+  // CJ SPU format: CJ + 1-4 letters + digits only, no trailing letters (e.g. CJLX1683903)
+  // Ends in a digit = product-level SPU → direct /product/query
+  if (/^CJ[A-Za-z]{1,4}\d+$/.test(t)) return { type: 'pid', value: t };
+  // CJ VID/SKU format: CJ + mixed alphanumeric ending in letters (e.g. CJLX168390313MN)
+  // Ends in a letter = variant-level VID → keyword search
+  if (/^CJ[A-Za-z0-9]{5,}$/i.test(t)) return { type: 'sku', value: t };
+  // Long numeric internal ID
   if (/^\d{10,}$/.test(t)) return { type: 'pid', value: t };
   return { type: 'keyword', value: t };
 }
@@ -50,12 +57,44 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const { action } = body;
 
+    // ── QUERY (direct product lookup by SPU/PID) ──────────────────────────────
+    if (action === 'query') {
+      const { pid } = body;
+      if (!pid) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'pid required' }) };
+      const { type, value } = detectSearchType(pid);
+      const pidToQuery = type === 'pid' ? value : pid;
+      const token = await getCJToken();
+      const res = await fetch(
+        `https://developers.cjdropshipping.com/api2.0/v1/product/query?pid=${encodeURIComponent(pidToQuery)}`,
+        { headers: { 'CJ-Access-Token': token, 'Content-Type': 'application/json' } }
+      );
+      const data = await res.json();
+      console.log('CJ query response:', JSON.stringify(data).slice(0, 400));
+      const p = data.data;
+      if (!p || (!p.pid && !p.productId)) {
+        return { statusCode: 200, headers: cors, body: JSON.stringify({ found: false, message: data.message || 'Not found' }) };
+      }
+      return {
+        statusCode: 200, headers: cors,
+        body: JSON.stringify({
+          found: true,
+          pid: p.pid || p.productId || '',
+          productNameEn: p.productNameEn || p.productName || '',
+          productImage: extractImageUrl(p.productImage || ''),
+          sellPrice: p.sellPrice || '0',
+        }),
+      };
+    }
+
+    // ── SEARCH ────────────────────────────────────────────────────────────────
     if (action === 'search') {
       const { keyword = '', page = 1 } = body;
       const token = await getCJToken();
       const { type, value } = detectSearchType(keyword);
+
       const cjHeaders = { 'CJ-Access-Token': token, 'Content-Type': 'application/json' };
 
+      // Helper: normalize a raw product object from either endpoint
       const normalizeProduct = (p) => ({
         pid: p.pid || p.productId || '',
         productNameEn: p.productNameEn || p.productName || '',
@@ -65,6 +104,7 @@ exports.handler = async (event) => {
       });
 
       if (type === 'pid') {
+        // Direct product lookup by PID extracted from URL or bare numeric ID
         const res = await fetch(
           `https://developers.cjdropshipping.com/api2.0/v1/product/query?pid=${encodeURIComponent(value)}`,
           { headers: cjHeaders }
@@ -81,6 +121,8 @@ exports.handler = async (event) => {
         };
       }
 
+      // SKU and keyword both use the list endpoint with keyword param
+      // (CJ's keyword search matches product SKUs as well as names)
       const listUrl = `https://developers.cjdropshipping.com/api2.0/v1/product/list?keyword=${encodeURIComponent(value)}&pageNum=${page}&pageSize=20`;
       const res = await fetch(listUrl, { headers: cjHeaders });
       const data = await res.json();
@@ -90,6 +132,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: cors, body: JSON.stringify({ list, total: data.data?.total || 0 }) };
     }
 
+    // ── VARIANTS ──────────────────────────────────────────────────────────────
     if (action === 'variants') {
       const { pid } = body;
       const token = await getCJToken();
@@ -99,6 +142,7 @@ exports.handler = async (event) => {
       );
       const data = await res.json();
       console.log('CJ variants response code:', data.code, 'data type:', typeof data.data, 'is array:', Array.isArray(data.data));
+      // CJ returns variants under data.variants, data.list, or data directly as an array
       const raw = data.data?.variants || data.data?.list || data.data || [];
       const variants = (Array.isArray(raw) ? raw : []).map(v => ({
         vid: v.vid || v.variantId || '',
@@ -110,6 +154,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: cors, body: JSON.stringify(variants) };
     }
 
+    // ── IMPORT (saves ALL variants as JSON array in one product row) ──────────
     if (action === 'import') {
       const { product } = body;
       const variants = Array.isArray(product.variants) ? product.variants : [];
