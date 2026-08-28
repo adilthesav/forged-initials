@@ -209,11 +209,20 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
   };
 
   const verifySPU = async () => {
-    if (!form.cj_pid?.trim()) return;
+    const input = form.cj_pid?.trim();
+    if (!input) return;
     setSpuLookup({ status: 'loading' });
     try {
-      const data = await cjFetch('search', { keyword: form.cj_pid.trim() });
-      const match = data.list?.[0];
+      // Direct product query — works for CJLX1683903 SPU format and numeric PIDs
+      const data = await cjFetch('query', { pid: input });
+      if (data.found && data.pid) {
+        set('cj_pid', data.pid);
+        setSpuLookup({ status: 'ok', name: data.productNameEn });
+        return;
+      }
+      // Fall back to keyword search (e.g. user typed a product name)
+      const searchData = await cjFetch('search', { keyword: input });
+      const match = searchData.list?.[0];
       if (match?.pid) {
         set('cj_pid', match.pid);
         setSpuLookup({ status: 'ok', name: match.productNameEn });
@@ -291,13 +300,13 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">
           CJ SPU (Product ID)
-          <span className="ml-1 font-normal text-stone-400">— paste from CJ dashboard or product URL</span>
+          <span className="ml-1 font-normal text-stone-400">— paste from CJ dashboard</span>
         </label>
         <div className="flex gap-2">
           <input
             value={form.cj_pid || ''}
             onChange={e => { set('cj_pid', e.target.value); setSpuLookup({ status: 'idle' }); }}
-            placeholder="e.g. 562936070697 or paste a CJ URL"
+            placeholder="e.g. CJLX1683903 or paste a CJ product URL"
             className="flex-1 px-3 py-2 text-sm font-mono border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
           />
           <button
@@ -318,10 +327,10 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           </p>
         )}
         {spuLookup.status === 'error' && (
-          <p className="text-[11px] text-red-500 mt-1">⚠ Not found on CJ — check the ID and try again</p>
+          <p className="text-[11px] text-red-500 mt-1">⚠ Not found on CJ — check the SPU and try again</p>
         )}
         <p className="text-[10px] text-stone-400 mt-0.5">
-          Find it in CJ dashboard → Products → click product → copy the numeric ID from the URL or product page
+          On CJ dashboard → My Products → find the product → copy the SPU shown below the product name (e.g. <span className="font-mono">CJLX1683903</span>)
         </p>
       </div>
 
@@ -448,9 +457,12 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
 
   const detectType = (v: string) => {
     const t = v.trim();
-    if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) return { label: 'CJ product URL', color: '#7c3aed' };
-    if (/^CJ[A-Z0-9]{5,}$/i.test(t)) return { label: 'SKU lookup', color: '#059669' };
-    if (/^\d{10,}$/.test(t)) return { label: 'Product ID lookup', color: '#059669' };
+    if (/cjdropshipping\.com\/product\/.+-p-(\w+)\.html/i.test(t)) return { label: 'CJ product URL — direct lookup', color: '#7c3aed' };
+    // CJ SPU: ends in digits (e.g. CJLX1683903) → direct product query
+    if (/^CJ[A-Za-z]{1,4}\d+$/.test(t)) return { label: 'SPU — direct product lookup', color: '#059669' };
+    // CJ VID/SKU: ends in letters (e.g. CJLX168390313MN) → keyword search
+    if (/^CJ[A-Za-z0-9]{5,}$/i.test(t)) return { label: 'VID/SKU — keyword search', color: '#059669' };
+    if (/^\d{10,}$/.test(t)) return { label: 'Numeric ID — direct lookup', color: '#059669' };
     if (t.length > 0) return { label: 'Keyword search', color: '#6b7280' };
     return null;
   };
@@ -472,7 +484,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { setPage(1); search(1); } }}
-            placeholder="Keyword, SKU (CJLX204893911KP), or paste a CJ product URL"
+            placeholder="SPU (CJLX1683903), VID/SKU (CJLX168390313MN), keyword, or CJ URL"
             className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400"
           />
           <button onClick={() => { setPage(1); search(1); }} disabled={searching}
@@ -487,7 +499,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             <span className="text-[11px] font-medium" style={{ color: typeHint.color }}>↳ {typeHint.label}</span>
           ) : (
             <span className="text-[11px] text-stone-400">
-              Tip: paste a SKU like <code className="bg-stone-100 px-1 rounded">CJLX204893911KP</code> or a full CJ URL for exact match
+              Tip: paste an SPU like <code className="bg-stone-100 px-1 rounded">CJLX1683903</code> for exact match
             </span>
           )}
         </div>
@@ -605,7 +617,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                 <div className="p-2.5">
                   <p className="text-xs font-medium text-stone-700 line-clamp-2 leading-snug mb-1">{p.productNameEn}</p>
                   <p className="text-[10px] font-bold mb-1" style={{ color: '#c9a84c' }}>CJ: ${toNum(p.sellPrice).toFixed(2)}</p>
-                  <p className="text-[9px] font-mono text-stone-300 mb-2 truncate select-all">{p.pid}</p>
+                  <p className="text-[9px] font-mono text-stone-300 mb-2 truncate select-all" title="SPU">{p.pid}</p>
                   <button onClick={() => selectProduct(p)}
                     className="w-full py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
@@ -631,7 +643,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         <div className="text-center py-16 text-stone-300">
           <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">Search the CJ catalog above</p>
-          <p className="text-xs mt-1">Try "925 silver ring", "initial pendant", "hoop earrings"</p>
+          <p className="text-xs mt-1">Try "925 silver ring", "initial pendant", or paste an SPU like CJLX1683903</p>
         </div>
       )}
     </div>
