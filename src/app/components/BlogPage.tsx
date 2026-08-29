@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Clock, ChevronRight, BookOpen, TrendingUp } from 'lucide-react';
-import { BLOG_POSTS, BLOG_CATEGORIES, type BlogPost } from '../data/blogPosts';
+import { BLOG_POSTS, type BlogPost } from '../data/blogPosts';
 
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZweHVpenltdG1jbnNnbXBuaGVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3ODgyMDUsImV4cCI6MjA3NjM2NDIwNX0.zLW_XvdTD6v-xSfCvmvv5GzPkY-si4huEZH65eUOyr4';
