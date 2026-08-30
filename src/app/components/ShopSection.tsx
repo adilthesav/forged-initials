@@ -28,6 +28,25 @@ interface Product {
 const CATS = ['All', 'Rings', 'Pendants', 'Earrings', 'Other'];
 const CAT_MAP: Record<string, string> = { Rings: 'ring', Pendants: 'pendant', Earrings: 'earring', Other: 'other' };
 
+const PRODUCT_CONFIG_KEY = 'forged_product_config';
+
+interface PersonalizationConfig {
+  enabled: boolean;
+  label: string;
+  shopify_url?: string;
+}
+
+function getPersonalizationConfig(productId: string): PersonalizationConfig | null {
+  try {
+    const raw = localStorage.getItem(PRODUCT_CONFIG_KEY);
+    if (!raw) return null;
+    const cfg = JSON.parse(raw);
+    return cfg[productId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function shortVariantName(variantName: string, productName: string): string {
   const cleaned = variantName.replace(productName, '').replace(/^[\s\-–—·|,]+/, '').trim();
   if (cleaned && cleaned.length < variantName.length) return cleaned;
@@ -63,11 +82,15 @@ function buildGroups(variants: Variant[], productName: string): Map<string, Vari
   return map;
 }
 
+// ── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const [selectedVid, setSelectedVid] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [buying, setBuying] = useState(false);
+  const [personText, setPersonText] = useState('');
+
+  const personConfig = getPersonalizationConfig(product.id);
 
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const groups = hasVariants ? buildGroups(product.variants!, product.name) : new Map<string, VariantGroup>();
@@ -90,7 +113,8 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const currentPrice = selectedVariant?.price_cents ?? product.price_cents;
   const soldOut = product.quantity_remaining === 0;
   const maxQty = Math.max(1, product.quantity_remaining);
-  const canBuy = !soldOut && (!hasVariants || !!selectedVid);
+  const hasDirectUrl = !!personConfig?.shopify_url;
+  const canBuy = !soldOut && (!hasVariants || !!selectedVid || hasDirectUrl);
 
   const allPrices = hasVariants
     ? product.variants!.map(v => v.price_cents || product.price_cents)
@@ -104,13 +128,22 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
     setBuying(true);
 
     if (product.source === 'shopify') {
+      if (personConfig?.shopify_url) {
+        window.location.href = personConfig.shopify_url;
+        return;
+      }
       const variantId = selectedVid || product.variants?.[0]?.vid || '';
       if (!variantId) {
         alert('Please select a variant to continue.');
         setBuying(false);
         return;
       }
-      window.location.href = `https://shop.forged-initials.com/cart/${variantId}:${quantity}`;
+      const baseUrl = `https://shop.forged-initials.com/cart/${variantId}:${quantity}`;
+      const personLabel = personConfig?.label || 'Personalization';
+      const url = personText.trim()
+        ? `${baseUrl}?note=${encodeURIComponent(`${personLabel}: ${personText.trim()}`)}`
+        : baseUrl;
+      window.location.href = url;
       return;
     }
 
@@ -146,6 +179,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
         className="bg-white w-full sm:max-w-2xl sm:rounded-3xl overflow-hidden flex flex-col sm:flex-row"
         style={{ maxHeight: '95vh' }}
       >
+        {/* Left: Image */}
         <div className="relative sm:w-5/12 flex-shrink-0 bg-stone-100">
           <div className="w-full aspect-square sm:h-full sm:aspect-auto relative">
             {product.image_url ? (
@@ -164,7 +198,9 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
           </button>
         </div>
 
+        {/* Right: Details */}
         <div className="flex-1 overflow-y-auto flex flex-col p-5 sm:p-7 gap-4">
+
           <div className="flex items-center justify-between">
             <span
               className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full capitalize"
@@ -196,7 +232,9 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             <div className="space-y-4">
               {colorKeys.length > 1 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Color / Style</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">
+                    Color / Style
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {colorKeys.map(color => (
                       <button
@@ -228,6 +266,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                     {variantsInColor.map(({ variant, size }) => {
                       const vPrice = variant.price_cents || product.price_cents;
                       const isActive = selectedVid === variant.vid;
+                      const showPrice = pricesVary;
                       return (
                         <button
                           key={variant.vid}
@@ -238,14 +277,14 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                             : { background: 'white', color: '#57534e', border: '1px solid #e7e5e4' }}
                         >
                           <span>{size || '—'}</span>
-                          {pricesVary && (
+                          {showPrice && (
                             <span className="text-[9px] opacity-70 leading-tight">${(vPrice / 100).toFixed(2)}</span>
                           )}
                         </button>
                       );
                     })}
                   </div>
-                  {!selectedVid && !soldOut && (
+                  {!selectedVid && !soldOut && !hasDirectUrl && (
                     <p className="text-[11px] text-amber-600 mt-2 font-medium">↑ Select your size to continue</p>
                   )}
                 </div>
@@ -272,6 +311,23 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
               {product.quantity_remaining <= 10 && (
                 <span className="text-[10px] text-stone-400">{product.quantity_remaining} available</span>
               )}
+            </div>
+          )}
+
+          {personConfig?.enabled && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5">
+                {personConfig.label || 'Personalization'}
+              </p>
+              <input
+                type="text"
+                value={personText}
+                onChange={e => setPersonText(e.target.value)}
+                maxLength={40}
+                placeholder="e.g. AB, Mom, Forever…"
+                className="w-full px-3 py-2.5 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
+              />
+              <p className="text-[10px] text-stone-400 mt-1">{personText.length}/40 · Added to your order note</p>
             </div>
           )}
 
@@ -304,7 +360,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                 boxShadow: '0 4px 18px rgba(201,168,76,0.38)',
               }}
             >
-              {buying ? 'Loading…' : soldOut ? 'Sold Out' : hasVariants && !selectedVid ? 'Select a Size to Continue' : quantity > 1 ? `Buy ${quantity} → $${((currentPrice * quantity) / 100).toFixed(2)}` : 'Buy Now →'}
+              {buying ? 'Loading…' : soldOut ? 'Sold Out' : hasDirectUrl ? 'Shop on Forged Initials →' : hasVariants && !selectedVid ? 'Select a Size to Continue' : quantity > 1 ? `Buy ${quantity} → $${((currentPrice * quantity) / 100).toFixed(2)}` : 'Buy Now →'}
             </button>
 
             <p className="text-[10px] text-center text-stone-400 leading-relaxed">
@@ -319,6 +375,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   );
 }
 
+// ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const soldOut = product.quantity_remaining === 0;
@@ -380,14 +437,20 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
         <h3 className="font-bold text-stone-800 text-sm sm:text-base leading-snug group-hover:text-amber-800 transition-colors line-clamp-2">
           {product.name}
         </h3>
+
         {hasVariants && (
           <p className="text-[11px] text-stone-400 font-medium">
             {product.variants!.length} styles available
           </p>
         )}
+
         <div className="flex items-center justify-between mt-auto pt-2">
-          <span className="text-base font-bold" style={{ color: '#c9a84c' }}>{priceLabel}</span>
-          <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 transition-colors">View →</span>
+          <span className="text-base font-bold" style={{ color: '#c9a84c' }}>
+            {priceLabel}
+          </span>
+          <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 transition-colors">
+            View →
+          </span>
         </div>
       </div>
     </div>
@@ -410,6 +473,7 @@ function SkeletonCard() {
   );
 }
 
+// ── Shop Section ──────────────────────────────────────────────────────────────
 export function ShopSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -430,7 +494,8 @@ export function ShopSection() {
       ]);
 
       const supaProducts: Product[] = supaResult.status === 'fulfilled' && Array.isArray(supaResult.value)
-        ? supaResult.value : [];
+        ? supaResult.value
+        : [];
 
       const shopifyRaw = shopifyResult.status === 'fulfilled' ? (shopifyResult.value.products || []) : [];
       const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
