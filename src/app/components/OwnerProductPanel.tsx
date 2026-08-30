@@ -109,7 +109,7 @@ function getSizeLabel(shortName: string, colorGroup: string): string {
   return after.replace(/\s*(Yards?)\s*/gi, '').replace(/^Size\s*/i, '').trim() || after;
 }
 
-// ── Variant Price Editor ──────────────────────────────────────────────────────
+// ── Variant Price Editor (shared by import + edit forms) ──────────────────────
 function VariantPriceEditor({
   variants,
   productName,
@@ -125,6 +125,7 @@ function VariantPriceEditor({
 }) {
   const [bulkVal, setBulkVal] = useState('');
 
+  // Group by color
   const groups = new Map<string, typeof variants>();
   for (const v of variants) {
     const shortName = shortVariantName(v.name, productName);
@@ -135,6 +136,7 @@ function VariantPriceEditor({
 
   return (
     <div className="space-y-3">
+      {/* Bulk price setter */}
       <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
         <span className="text-xs text-stone-600 font-semibold whitespace-nowrap">Set all to:</span>
         <div className="flex items-center gap-1">
@@ -157,6 +159,7 @@ function VariantPriceEditor({
         </button>
       </div>
 
+      {/* Grouped variant rows */}
       <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
         {[...groups.entries()].map(([color, groupVars]) => (
           <div key={color}>
@@ -173,7 +176,7 @@ function VariantPriceEditor({
                   <div key={v.vid} className="flex items-center gap-2 bg-stone-50 hover:bg-amber-50/50 rounded-lg px-3 py-2 transition-colors">
                     <div className="flex-1 min-w-0">
                       <span className="text-xs text-stone-700 font-medium truncate block">{size || shortName}</span>
-                      <span className="text-[9px] font-mono text-stone-300 truncate block select-all">{v.vid}</span>
+                      <span className="text-[9px] font-mono text-stone-300 truncate block select-all" title="CJ Variant ID (VID/SKU)">{v.vid}</span>
                     </div>
                     {v.warehouseCountryCode && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-stone-200 text-stone-500 whitespace-nowrap">
@@ -205,7 +208,7 @@ function VariantPriceEditor({
   );
 }
 
-// ── ProductForm ───────────────────────────────────────────────────────────────
+// ── ProductForm ──────────────────────────────────────────────────────────────
 function ProductForm({ initial, onSave, onCancel, saving }: {
   initial: Product; onSave: (p: Product) => void; onCancel: () => void; saving: boolean;
 }) {
@@ -238,6 +241,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
       const data = await cjFetch('search', { keyword: input });
       const match = data.list?.[0];
       if (match?.pid) {
+        // Keep what the user typed (e.g. CJLX1683903) — only normalize if they pasted a URL
         const isCJCode = /^CJ[A-Za-z0-9]+$/i.test(input);
         if (!isCJCode) set('cj_pid', match.pid);
         setSpuLookup({ status: 'ok', name: match.productNameEn });
@@ -311,6 +315,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
         {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 h-20 w-20 object-cover rounded-lg border border-stone-200" />}
       </div>
 
+      {/* CJ SPU field — editable + verify button */}
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">
           CJ SPU (Product ID)
@@ -348,6 +353,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
         </p>
       </div>
 
+      {/* Variant price editor for existing products */}
       {hasVariants && (
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-2 block">
@@ -384,7 +390,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
   );
 }
 
-// ── CJImportPanel ─────────────────────────────────────────────────────────────
+// ── CJImportPanel ────────────────────────────────────────────────────────────
 function CJImportPanel({ onImported }: { onImported: () => void }) {
   const [keyword, setKeyword] = useState('sterling silver jewelry');
   const [results, setResults] = useState<CJProduct[]>([]);
@@ -395,6 +401,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   const [selected, setSelected] = useState<CJProduct | null>(null);
   const [variants, setVariants] = useState<CJVariant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
+  // Per-variant prices: vid → price_cents
   const [variantPrices, setVariantPrices] = useState<Record<string, number>>({});
   const [category, setCategory] = useState('pendant');
   const [importing, setImporting] = useState(false);
@@ -423,12 +430,14 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
       const data = await cjFetch('variants', { pid: product.pid });
       const list: CJVariant[] = Array.isArray(data) ? data : [];
       setVariants(list);
+      // Default: 2.5× markup on each variant
       const defaultPrices: Record<string, number> = {};
       list.forEach(v => {
         defaultPrices[v.vid] = Math.ceil(toNum(v.variantSellPrice) * 2.5 * 100);
       });
       setVariantPrices(defaultPrices);
     } catch {
+      // Fallback default price from product sell price
       setVariantPrices({});
     }
     setLoadingVariants(false);
@@ -446,6 +455,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             ? `${variants.length} variants available — choose your size and style`
             : '',
           image_url: selected.productImage,
+          // Base price = median or minimum of set prices
           price_cents: variants.length > 0
             ? Math.min(...variants.map(v => variantPrices[v.vid] || Math.ceil(toNum(selected.sellPrice) * 2.5 * 100)))
             : Math.ceil(toNum(selected.sellPrice) * 2.5 * 100),
@@ -469,6 +479,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
     setImporting(false);
   };
 
+  // Live search type hint
   const detectType = (v: string) => {
     const t = v.trim();
     if (/cjdropshipping\.com\/product\/.+-p-(\d+)\.html/i.test(t)) return { label: 'CJ product URL — direct lookup', color: '#7c3aed' };
@@ -480,6 +491,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   };
   const typeHint = detectType(keyword);
 
+  // Price stats for summary
   const setPricesCount = variants.filter(v => (variantPrices[v.vid] || 0) > 0).length;
   const minPrice = variants.length > 0
     ? Math.min(...variants.map(v => variantPrices[v.vid] || 0).filter(Boolean))
@@ -490,6 +502,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
 
   return (
     <div className="space-y-4">
+      {/* Search bar */}
       <div className="space-y-1.5">
         <div className="flex gap-2">
           <input
@@ -529,8 +542,10 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
+      {/* Selected product detail + per-variant pricing */}
       {selected && (
         <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
+          {/* Product header */}
           <div className="flex items-start gap-3">
             <img src={selected.productImage} alt="" className="w-16 h-16 object-cover rounded-xl flex-shrink-0 border border-stone-100" />
             <div className="flex-1 min-w-0">
@@ -549,6 +564,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
             </p>
           ) : (
             <>
+              {/* Category selector */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-stone-500 mb-1 block">Category</label>
@@ -560,6 +576,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                     <option value="other">Other</option>
                   </select>
                 </div>
+                {/* Price summary */}
                 {variants.length > 0 && setPricesCount > 0 && (
                   <div className="flex flex-col justify-center">
                     <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider">Price range</p>
@@ -573,6 +590,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
                 )}
               </div>
 
+              {/* Variant pricing */}
               {variants.length > 0 && (
                 <div>
                   <label className="text-xs font-semibold text-stone-500 mb-2 block">
@@ -616,6 +634,7 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
+      {/* Results grid */}
       {!selected && results.length > 0 && (
         <>
           <p className="text-xs text-stone-400">{total.toLocaleString()} results — page {page}</p>
@@ -661,149 +680,193 @@ function CJImportPanel({ onImported }: { onImported: () => void }) {
   );
 }
 
-// ── ShopifyPersonalizationPanel ───────────────────────────────────────────────
-interface ShopifyProduct {
-  shopify_id: string;
-  name: string;
-  image_url: string;
-  category: string;
-}
-
-function ShopifyPersonalizationPanel() {
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+// ── PersonalizationPanel ──────────────────────────────────────────────────────
+function PersonalizationPanel() {
   const [config, setConfig] = useState<Record<string, PersonalizationConfig>>(loadConfig);
+  const [newProductId, setNewProductId] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const [newPersonEnabled, setNewPersonEnabled] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
   const [toast, setToast] = useState('');
 
-  useEffect(() => {
-    fetch('/.netlify/functions/shopify-products')
-      .then(r => r.json())
-      .then(d => setProducts(Array.isArray(d.products) ? d.products : []))
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
-
-  const toggle = (id: string) => {
-    const cur = config[id] ?? { enabled: false, label: 'Enter your text' };
-    const next = { ...config, [id]: { ...cur, enabled: !cur.enabled } };
+  const addRule = () => {
+    const id = newProductId.trim();
+    const url = newUrl.trim();
+    if (!id || !url) return;
+    const next = {
+      ...config,
+      [id]: {
+        enabled: newPersonEnabled,
+        label: newLabel.trim() || 'Enter your text',
+        shopify_url: url,
+      },
+    };
     setConfig(next);
     saveConfig(next);
-    showToast(!cur.enabled ? 'Personalization enabled' : 'Personalization disabled');
+    setNewProductId('');
+    setNewUrl('');
+    setNewLabel('');
+    setNewPersonEnabled(false);
+    showToast('Redirect rule saved');
   };
 
-  const setLabel = (id: string, label: string) => {
-    const cur = config[id] ?? { enabled: true, label: '' };
-    const next = { ...config, [id]: { ...cur, label } };
+  const removeRule = (id: string) => {
+    const next = { ...config };
+    delete next[id];
+    setConfig(next);
+    saveConfig(next);
+    showToast('Rule removed');
+  };
+
+  const updateRule = (id: string, updates: Partial<PersonalizationConfig>) => {
+    const next = { ...config, [id]: { ...config[id], ...updates } };
     setConfig(next);
     saveConfig(next);
   };
 
-  const setUrl = (id: string, shopify_url: string) => {
-    const cur = config[id] ?? { enabled: false, label: 'Enter your text' };
-    const next = { ...config, [id]: { ...cur, shopify_url } };
-    setConfig(next);
-    saveConfig(next);
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-16 text-stone-400">
-        <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />
-        Loading Shopify products…
-      </div>
-    );
-  }
-
-  if (products.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <ShoppingBag className="w-12 h-12 mx-auto mb-3 text-stone-200" />
-        <p className="text-stone-400 font-medium">No Shopify products found.</p>
-        <p className="text-stone-300 text-sm mt-1">Make sure the Shopify function is configured.</p>
-      </div>
-    );
-  }
+  const rules = Object.entries(config);
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-stone-400 leading-relaxed bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-        Set a direct Shopify product URL to redirect customers straight to that page. Enable personalization to show a custom text input on the product modal.
-      </p>
+    <div className="space-y-5">
+      <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs text-stone-500 leading-relaxed">
+        Paste a Shopify product page URL and the product ID it matches in your shop. When a customer clicks "Buy Now" it redirects directly to that page. Optionally enable a personalization text field on the product modal.
+      </div>
 
-      {products.map(p => {
-        const cfg = config[`shopify_${p.shopify_id}`] ?? { enabled: false, label: 'Enter your text' };
-        const productId = `shopify_${p.shopify_id}`;
-        return (
-          <div key={p.shopify_id}
-            className={`bg-white rounded-2xl border p-4 transition-all ${cfg.enabled || cfg.shopify_url ? 'border-amber-200' : 'border-stone-100'}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-stone-50 flex-shrink-0">
-                {p.image_url
-                  ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-4 h-4 text-stone-200" /></div>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-stone-800 text-sm truncate">{p.name}</p>
-                <p className="text-[10px] text-stone-400 capitalize">{p.category}</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-[10px] font-bold ${cfg.enabled ? 'text-emerald-600' : 'text-stone-400'}`}>
-                  {cfg.enabled ? 'Text On' : 'Text Off'}
-                </span>
+      {/* ── Add form ── */}
+      <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4">
+        <h3 className="font-bold text-stone-800 text-sm">Add Redirect</h3>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5 block">
+            Product ID
+            <span className="normal-case tracking-normal font-normal text-stone-300 ml-1">— found in My Products (copy ID from edit form) or use shopify_XXXXX</span>
+          </label>
+          <input
+            value={newProductId}
+            onChange={e => setNewProductId(e.target.value)}
+            placeholder="e.g. shopify_9876543210 or a UUID"
+            className="w-full px-3 py-2 text-sm font-mono border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
+          />
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5 block">
+            Shopify Product URL
+          </label>
+          <input
+            type="url"
+            value={newUrl}
+            onChange={e => setNewUrl(e.target.value)}
+            placeholder="https://shop.forged-initials.com/products/your-product"
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
+          />
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <input
+            type="checkbox"
+            id="new-person-toggle"
+            checked={newPersonEnabled}
+            onChange={e => setNewPersonEnabled(e.target.checked)}
+            className="w-4 h-4 accent-amber-500"
+          />
+          <label htmlFor="new-person-toggle" className="text-xs font-semibold text-stone-600">
+            Enable personalization text input on this product
+          </label>
+        </div>
+
+        {newPersonEnabled && (
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5 block">
+              Label shown to customer
+            </label>
+            <input
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              placeholder="e.g. Enter your initials"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 transition-all"
+            />
+          </div>
+        )}
+
+        <button
+          onClick={addRule}
+          disabled={!newProductId.trim() || !newUrl.trim()}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 hover:scale-105"
+          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}
+        >
+          <Plus className="w-4 h-4" /> Save Redirect
+        </button>
+      </div>
+
+      {/* ── Existing rules ── */}
+      {rules.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
+            Active Rules ({rules.length})
+          </p>
+          {rules.map(([id, cfg]) => (
+            <div key={id} className="bg-white border border-stone-100 rounded-2xl p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-mono text-stone-400 truncate select-all">{id}</p>
+                  {cfg.shopify_url && (
+                    <a
+                      href={cfg.shopify_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-amber-600 hover:underline truncate block mt-0.5"
+                    >
+                      → {cfg.shopify_url}
+                    </a>
+                  )}
+                </div>
                 <button
-                  onClick={() => toggle(productId)}
-                  className="relative w-10 h-6 rounded-full transition-all duration-200 flex-shrink-0"
-                  style={{ background: cfg.enabled ? '#c9a84c' : '#e7e5e4' }}>
-                  <span
-                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200"
-                    style={{ left: cfg.enabled ? '18px' : '2px' }}
-                  />
+                  onClick={() => removeRule(id)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 flex-shrink-0 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
                 </button>
               </div>
-            </div>
 
-            {/* Shopify product URL */}
-            <div className="mt-3 pt-3 border-t border-stone-100">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1.5">
-                Shopify Product URL <span className="normal-case tracking-normal font-normal text-stone-300">(optional)</span>
-              </label>
-              <input
-                type="url"
-                value={cfg.shopify_url || ''}
-                onChange={e => setUrl(productId, e.target.value)}
-                placeholder="https://shop.forged-initials.com/products/your-product"
-                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all font-mono text-xs"
-              />
-              {cfg.shopify_url ? (
-                <p className="text-[10px] text-emerald-600 mt-1">✓ "Buy Now" redirects directly to this product page</p>
-              ) : (
-                <p className="text-[10px] text-stone-400 mt-1">Leave empty to use the default cart checkout</p>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => updateRule(id, { enabled: !cfg.enabled })}
+                  className="relative w-9 h-5 rounded-full transition-all duration-200 flex-shrink-0"
+                  style={{ background: cfg.enabled ? '#c9a84c' : '#e7e5e4' }}
+                >
+                  <span
+                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
+                    style={{ left: cfg.enabled ? '17px' : '2px' }}
+                  />
+                </button>
+                <span className="text-xs text-stone-500">
+                  {cfg.enabled ? 'Personalization text on' : 'Personalization text off'}
+                </span>
+              </div>
+
+              {cfg.enabled && (
+                <input
+                  value={cfg.label || ''}
+                  onChange={e => updateRule(id, { label: e.target.value })}
+                  placeholder="Label shown to customer"
+                  className="w-full px-3 py-1.5 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition-all"
+                />
               )}
             </div>
+          ))}
+        </div>
+      )}
 
-            {cfg.enabled && (
-              <div className="mt-3 pt-3 border-t border-stone-100">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-1.5">
-                  Personalization Label (shown to customer)
-                </label>
-                <input
-                  type="text"
-                  value={cfg.label}
-                  onChange={e => setLabel(productId, e.target.value)}
-                  placeholder="e.g. Enter your initials, Enter your name…"
-                  className="w-full px-3 py-2 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
-                />
-                <p className="text-[10px] text-stone-400 mt-1.5 flex items-center gap-1">
-                  <Type className="w-2.5 h-2.5" />
-                  Preview: customer sees "<span className="italic text-stone-500">{cfg.label || 'Enter your text'}</span>" above the input
-                </p>
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {rules.length === 0 && (
+        <div className="text-center py-14 text-stone-300">
+          <Type className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium text-stone-400">No redirect rules yet.</p>
+          <p className="text-xs text-stone-300 mt-1">Add one above to send "Buy Now" straight to a Shopify product page.</p>
+        </div>
+      )}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-stone-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl">
@@ -814,7 +877,7 @@ function ShopifyPersonalizationPanel() {
   );
 }
 
-// ── Main panel ────────────────────────────────────────────────────────────────
+// ── Main panel ───────────────────────────────────────────────────────────────
 export function OwnerProductPanel() {
   const [tab, setTab] = useState<'products' | 'cj' | 'personalization'>('products');
   const [products, setProducts] = useState<Product[]>([]);
@@ -873,6 +936,7 @@ export function OwnerProductPanel() {
           </button>
         </div>
 
+        {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-xl w-fit flex-wrap">
           {([
             ['products', '📦 My Products'],
@@ -890,7 +954,7 @@ export function OwnerProductPanel() {
         </div>
 
         {tab === 'cj' && <CJImportPanel onImported={load} />}
-        {tab === 'personalization' && <ShopifyPersonalizationPanel />}
+        {tab === 'personalization' && <PersonalizationPanel />}
 
         {tab === 'products' && (
           <>
@@ -956,12 +1020,14 @@ export function OwnerProductPanel() {
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-400">Hidden</span>
                               )}
                             </div>
+                            {/* CJ SPU (cj_pid) */}
                             {product.cj_pid && (
                               <p className="text-[10px] font-mono text-stone-400 mt-0.5 leading-tight">
                                 <span className="text-stone-300">SPU:</span> <span className="text-stone-500 select-all">{product.cj_pid}</span>
                               </p>
                             )}
                             <div className="flex items-center gap-3 mt-1">
+                              {/* Show price range if variants have per-variant prices */}
                               {Array.isArray(product.variants) && product.variants.length > 0 ? (() => {
                                 const prices = product.variants!.filter(v => v.price_cents).map(v => v.price_cents!);
                                 if (prices.length === 0) return (
