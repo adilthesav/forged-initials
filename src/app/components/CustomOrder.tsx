@@ -275,12 +275,10 @@ export function CustomOrder() {
       }
     }
 
-    // Validate Houston-only shipping
-    const city = formData.city.toLowerCase().trim();
+    // Validate US shipping — state required
     const state = formData.stateOrProvinceCode.toUpperCase().trim();
-    
-    if (state !== 'TX' || city !== 'houston') {
-      alert('⚠️ We currently only ship to Houston, Texas.\n\nPlease ensure:\n• City: Houston\n• State: TX\n\nThank you for your understanding!');
+    if (!state || state.length !== 2) {
+      alert('Please enter a valid 2-letter US state code (e.g. TX, CA, NY).');
       return;
     }
 
@@ -588,12 +586,12 @@ export function CustomOrder() {
                 <div className="space-y-4 pt-6 border-t">
                   <h3 className="text-base md:text-lg flex items-center gap-2">
                     <Box className="w-5 h-5" />
-                    Shipping Address (Houston, TX Only)
+                    Shipping Address (All U.S.)
                   </h3>
-                  
-                  <div className="p-3 md:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-xs md:text-sm text-yellow-900">
-                      <strong>⚠️ Important:</strong> We currently only ship to Houston, Texas addresses.
+
+                  <div className="p-3 md:p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <p className="text-xs md:text-sm text-emerald-900">
+                      <strong>🇺🇸 We ship anywhere in the United States.</strong> Enter your full address below.
                     </p>
                   </div>
 
@@ -627,7 +625,7 @@ export function CustomOrder() {
                         id="city"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        placeholder="Houston"
+                        placeholder="City"
                         required
                         className="bg-white border-2 border-gray-300 h-12 md:h-14 shadow-sm text-base"
                       />
@@ -638,7 +636,7 @@ export function CustomOrder() {
                         id="state"
                         value={formData.stateOrProvinceCode}
                         onChange={(e) => setFormData({ ...formData, stateOrProvinceCode: e.target.value })}
-                        placeholder="TX"
+                        placeholder="e.g. TX"
                         required
                         maxLength={2}
                         className="bg-white border-2 border-gray-300 h-12 md:h-14 shadow-sm text-base"
@@ -1158,7 +1156,7 @@ export function CustomOrder() {
                         {/* Shipping */}
                         {priceBreakdown.shippingFee !== undefined && (
                           <div className="flex justify-between items-center text-lg bg-white/60 p-4 rounded-lg">
-                            <span className="text-purple-900">Shipping (Houston, TX):</span>
+                            <span className="text-purple-900">Shipping (U.S.):</span>
                             <span className="text-purple-900">${priceBreakdown.shippingFee.toFixed(2)}</span>
                           </div>
                         )}
@@ -1197,28 +1195,159 @@ export function CustomOrder() {
                   </div>
                 )}
 
+                {/* Telegram Trust Section */}
+                <div className="space-y-4 pt-6 border-t">
+                  <div className="rounded-2xl overflow-hidden border-2 border-[#229ED9]/30 bg-gradient-to-br from-[#e8f6fd] to-[#f0faff]">
+                    {/* Header strip */}
+                    <div className="flex items-center gap-3 px-5 py-4 bg-[#229ED9]">
+                      <svg className="w-7 h-7 flex-shrink-0" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
+                      </svg>
+                      <div>
+                        <p className="text-white font-bold text-base leading-tight">Talk to us first on Telegram</p>
+                        <p className="text-white/80 text-xs">No payment needed to start a conversation</p>
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="px-5 py-4 space-y-3">
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        <strong>We need to communicate first</strong> before any order can move forward. Send us a message on Telegram so we can go over your design together — confirm the letters, sizes, and every detail. We only ask for payment once <strong>you're happy and everything is set.</strong>
+                      </p>
+
+                      <div className="bg-[#229ED9]/10 border border-[#229ED9]/20 rounded-xl px-4 py-3 text-xs text-[#0e6a99] leading-relaxed">
+                        ℹ️ <strong>Orders cannot be started without prior contact.</strong> Reaching out first ensures your piece is made exactly right and that there are no surprises on either end.
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600">
+                        <div className="flex items-start gap-2 bg-white/70 rounded-lg p-2.5">
+                          <span className="text-lg leading-none">💬</span>
+                          <span>Chat with us directly — no bots, real person</span>
+                        </div>
+                        <div className="flex items-start gap-2 bg-white/70 rounded-lg p-2.5">
+                          <span className="text-lg leading-none">✅</span>
+                          <span>Confirm your design before any payment</span>
+                        </div>
+                        <div className="flex items-start gap-2 bg-white/70 rounded-lg p-2.5">
+                          <span className="text-lg leading-none">🔒</span>
+                          <span>Only pay when you're completely satisfied</span>
+                        </div>
+                      </div>
+
+                      <a
+                        href="https://t.me/adilali08"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-semibold text-white text-sm transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: '#229ED9' }}
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
+                          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
+                        </svg>
+                        Message us on Telegram @adilali08
+                      </a>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <a
+                          href="https://www.instagram.com/forged_initails/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-white text-xs transition-all hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}
+                        >
+                          <Instagram className="w-4 h-4" />
+                          Instagram DM
+                        </a>
+                        <a
+                          href="https://m.me/Adil6034"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-white text-xs transition-all hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#0084ff,#0668e1)' }}
+                        >
+                          <Facebook className="w-4 h-4" />
+                          Facebook Messenger
+                        </a>
+                      </div>
+
+                      <p className="text-[11px] text-center text-slate-400 leading-relaxed">
+                        Already spoke with us and ready to go? Fill out the form above and continue below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Social Media Contact Notice */}
-                <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                  <h3 className="mb-3 flex items-center gap-2">
-                    <span>📱</span> Contact & Communication
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                    <span>📱</span> Also reach us on social media
                   </h3>
-                  <p className="text-sm text-blue-900 mb-3">
-                    We communicate exclusively through social media for order updates, design confirmations, and shipping details.
-                  </p>
-                  <div className="flex gap-4 mb-3">
+                  <div className="flex gap-4 mb-2">
                     <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-700 transition-colors">
-                      <Instagram className="w-6 h-6" />
+                      <Instagram className="w-5 h-5" />
                     </a>
                     <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 transition-colors">
-                      <Facebook className="w-6 h-6" />
+                      <Facebook className="w-5 h-5" />
                     </a>
                     <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-600 transition-colors">
-                      <Twitter className="w-6 h-6" />
+                      <Twitter className="w-5 h-5" />
                     </a>
                   </div>
                   <p className="text-xs text-blue-800">
                     Please ensure you're following us and have direct messages enabled
                   </p>
+                </div>
+
+                {/* Refund Policy */}
+                <div className="rounded-2xl border border-stone-200 overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3 bg-stone-50 border-b border-stone-200">
+                    <span className="text-lg">🔄</span>
+                    <h3 className="text-sm font-bold text-stone-700">Refund & Return Policy</h3>
+                  </div>
+                  <div className="px-5 py-4 space-y-3">
+                    <p className="text-sm text-stone-600 leading-relaxed">
+                      If you paid unintentionally, by mistake, or for any reason you'd like a refund — please reach out right away. We'll gladly attempt to issue your refund as soon as possible with no questions asked.
+                    </p>
+
+                    <div className="flex gap-2.5 bg-stone-50 border border-stone-200 rounded-xl p-3">
+                      <span className="text-base leading-none flex-shrink-0 mt-0.5">❓</span>
+                      <p className="text-xs text-stone-600 leading-relaxed">
+                        <strong>Unknown payment?</strong> If we receive a payment from someone we haven't spoken with, we will also issue that refund. We need to communicate first — please reach out via email or Telegram so we know who you are and can take care of it right away.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <a
+                        href="mailto:forgedinitals@outlook.com"
+                        className="flex items-center justify-center gap-2 flex-1 py-2.5 px-4 rounded-xl border-2 border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50 transition-all"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="2" y="4" width="20" height="16" rx="2"/>
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                        Email us
+                      </a>
+                      <a
+                        href="https://t.me/adilali08"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 flex-1 py-2.5 px-4 rounded-xl border-2 text-xs font-semibold transition-all hover:opacity-90"
+                        style={{ borderColor: '#229ED9', color: '#229ED9' }}
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
+                        </svg>
+                        Message on Telegram
+                      </a>
+                    </div>
+
+                    <div className="flex gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      <span className="text-base leading-none flex-shrink-0 mt-0.5">⚠️</span>
+                      <p className="text-xs text-amber-800 leading-relaxed">
+                        <strong>Disclaimer:</strong> Refunds cannot be issued or processed once a product is already in the process of being delivered, or after <strong>14 days</strong> from delivery with no return of the correct package to our facility to drop off — and for us to receive the returned item.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full" size="lg">
