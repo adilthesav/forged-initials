@@ -245,20 +245,49 @@ export function Contact() {
                     </div>
                     <div>
                       <h4 className="mb-1 text-base md:text-lg">Email</h4>
-                      <p className="text-sm md:text-base text-foreground/60 break-all">forgedinitals@outlook.com</p>
+                      <a href="mailto:forgedinitals@outlook.com" className="text-sm md:text-base text-primary hover:underline break-all">forgedinitals@outlook.com</a>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 md:gap-4">
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Instagram className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h4 className="mb-1 text-base md:text-lg">Direct Contact (Fastest Response)</h4>
-                      <p className="text-sm md:text-base text-foreground/60 mb-2">For direct and immediate assistance:</p>
-                      <div className="space-y-1">
-                        <p className="text-sm md:text-base text-foreground/80">📸 <span className="font-medium text-primary">Instagram</span> - DM us anytime</p>
-                        <p className="text-sm md:text-base text-foreground/80">📘 <span className="font-medium text-primary">Facebook</span> - Quick responses</p>
-                        <p className="text-sm md:text-base text-foreground/80">💬 <span className="font-medium text-primary">Telegram</span> - Message <a href="https://t.me/adilali08" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">@adilali08</a></p>
+                      <p className="text-sm md:text-base text-foreground/60 mb-3">For direct and immediate assistance:</p>
+                      <div className="space-y-2">
+                        <a
+                          href="https://www.instagram.com/forged_initails/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}
+                        >
+                          <Instagram className="w-4 h-4 flex-shrink-0" />
+                          @forged_initails — DM us anytime
+                        </a>
+                        <a
+                          href="https://m.me/Adil6034"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#0084ff,#0668e1)' }}
+                        >
+                          <Facebook className="w-4 h-4 flex-shrink-0" />
+                          Messenger — Adil6034
+                        </a>
+                        <a
+                          href="https://t.me/adilali08"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90"
+                          style={{ background: '#229ED9' }}
+                        >
+                          <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="white">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
+                          </svg>
+                          Telegram — @adilali08
+                        </a>
                       </div>
                     </div>
                   </div>
