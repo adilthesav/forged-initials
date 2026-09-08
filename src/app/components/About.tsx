@@ -2,7 +2,7 @@
 import { Card, CardContent } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Sparkles, Package, Truck } from 'lucide-react';
-const portraitImage = '/adil-portrait.jpeg';
+const portraitImage = '/logo.png';
 
 export function About() {
   const features = [
