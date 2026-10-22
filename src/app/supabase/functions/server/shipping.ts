@@ -105,7 +105,7 @@ const ORIGIN_ADDRESS: ShippingAddress = {
   stateOrProvinceCode: 'TX',
   postalCode: '77082',
   countryCode: 'US',
-  phoneNumber: '8323528778',
+  phoneNumber: '3465760945',
 };
 
 /**

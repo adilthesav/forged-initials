@@ -44,7 +44,7 @@ function getSchemaForType(type: string) {
     "url": baseUrl,
     "logo": `${baseUrl}/logo.png`,
     "image": "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=630&fit=crop",
-    "telephone": "Contact via social media",
+    "telephone": "+1-346-576-0945",
     "email": "forgedinitals@outlook.com",
     "address": {
       "@type": "PostalAddress",
