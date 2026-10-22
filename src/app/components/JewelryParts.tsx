@@ -32,7 +32,7 @@ export function JewelryParts() {
           </Badge>
           <h2 className="mb-3 md:mb-4 text-2xl md:text-3xl lg:text-4xl">Sterling Silver Components</h2>
           <p className="text-sm md:text-base text-muted-foreground px-4">
-            Authentic 925 sterling silver bails, prongs, and findings. Perfect for jewelers and DIY enthusiasts. Houston delivery only.
+            Authentic 925 sterling silver bails, prongs, and findings. Perfect for jewelers and DIY enthusiasts. Ships anywhere in the U.S.
           </p>
         </div>
 
@@ -237,7 +237,7 @@ export function JewelryParts() {
           <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
             <CardContent className="p-6">
               <p className="text-sm">
-                <strong>Parts Only:</strong> All items sold as individual components. We specialize in premium 925 sterling silver findings for professional jewelers and DIY creators. Flat-rate $10 FedEx Ground shipping to Houston addresses only.
+                <strong>Parts Only:</strong> All items sold as individual components. We specialize in premium 925 sterling silver findings for professional jewelers and DIY creators. Flat-rate $10 FedEx Ground shipping anywhere in the U.S.
               </p>
             </CardContent>
           </Card>

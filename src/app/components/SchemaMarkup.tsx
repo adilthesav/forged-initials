@@ -75,12 +75,8 @@ function getSchemaForType(type: string) {
     "paymentAccepted": "Credit Card, Cash App, Link",
     "currenciesAccepted": "USD",
     "areaServed": {
-      "@type": "City",
-      "name": "Houston",
-      "containedIn": {
-        "@type": "State",
-        "name": "Texas"
-      }
+      "@type": "Country",
+      "name": "United States"
     },
     "founder": {
       "@type": "Person",
@@ -234,7 +230,7 @@ function getSchemaForType(type: string) {
           "name": "How much does each letter cost?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "We offer five sizes with fixed pricing: Extra Small ($1), Small ($2), Medium ($3), Large ($4), and Extra Large ($5) per piece. Shipping is a flat $10 via FedEx Ground to Houston."
+            "text": "We offer five sizes with fixed pricing: Extra Small ($1), Small ($2), Medium ($3), Large ($4), and Extra Large ($5) per piece. Shipping is a flat $10 via FedEx Ground anywhere in the U.S."
           }
         },
         {
@@ -258,7 +254,7 @@ function getSchemaForType(type: string) {
           "name": "Where do you ship to?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "We currently only ship to Houston, Texas via FedEx Ground for a flat rate of $10. We specialize in serving the Houston community."
+            "text": "We ship anywhere in the United States via FedEx Ground for a flat rate of $10. Every piece is handcrafted in Houston, Texas."
           }
         },
         {
@@ -266,7 +262,7 @@ function getSchemaForType(type: string) {
           "name": "How do I place an order?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Select your desired letters (A-Z) and quantities, choose your size (Small/Medium/Large), enter your Houston shipping address, and pay securely via Stripe checkout (Card, Cash App, or Link). You'll receive a confirmation email with your order details."
+            "text": "Select your desired letters (A-Z) and quantities, choose your size (Small/Medium/Large), enter your U.S. shipping address, and pay securely via Stripe checkout (Card, Cash App, or Link). You'll receive a confirmation email with your order details."
           }
         },
         {
@@ -282,7 +278,7 @@ function getSchemaForType(type: string) {
           "name": "How long does production take?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Each piece is handcrafted to order. Production typically takes 2-5 business days, with delivery within 3-7 days after shipping via FedEx Ground to Houston."
+            "text": "Each piece is handcrafted to order. Production typically takes 2-5 business days, with delivery within 3-7 days after shipping via FedEx Ground."
           }
         },
         {

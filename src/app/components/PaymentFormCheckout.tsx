@@ -87,7 +87,7 @@ export function PaymentFormCheckout({
 
       // Add shipping
       lineItems.push({
-        name: 'Shipping (Houston)',
+        name: 'Shipping (FedEx Ground)',
         description: 'FedEx Ground',
         unitAmount: Math.round(shippingCost * 100),
         quantity: 1,
@@ -370,7 +370,7 @@ export function PaymentFormCheckout({
               <div className="p-3 bg-muted/30 rounded-lg">
                 <div className="flex justify-between items-center">
                   <div>
-                    <span>Shipping (Houston, TX):</span>
+                    <span>Shipping (FedEx Ground):</span>
                     <div className="text-xs text-muted-foreground">FedEx Ground - Flat Rate</div>
                   </div>
                   <span>${shippingCost.toFixed(2)}</span>

@@ -211,7 +211,7 @@ ${itemsList}
 **Pricing Breakdown:**
 ${pricingBreakdown}
   • Subtotal: $${subtotal.toFixed(2)}
-  • Shipping (FedEx Ground to Houston): $${shipping.toFixed(2)}
+  • Shipping (FedEx Ground): $${shipping.toFixed(2)}
   • **Total: $${total.toFixed(2)}**
 
 **Shipping Address:**

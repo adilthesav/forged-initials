@@ -4,7 +4,7 @@ const features = [
   { icon: Gem,      title: 'Premium Materials',   description: 'Authentic 925 sterling silver for lasting quality and shine.', color: 'from-amber-400/20 to-yellow-400/10', iconColor: 'text-amber-600' },
   { icon: Sparkles, title: 'Handcrafted Design',   description: 'Each letter individually forged and finished by hand.', color: 'from-purple-400/20 to-violet-400/10', iconColor: 'text-purple-600' },
   { icon: Shield,   title: 'Quality Guarantee',    description: 'We stand behind every piece with a craftsmanship commitment.', color: 'from-green-400/20 to-emerald-400/10', iconColor: 'text-green-600' },
-  { icon: Truck,    title: '$10 Flat Shipping',     description: 'FedEx Ground to Houston. Fast, reliable, flat-rate delivery.', color: 'from-blue-400/20 to-sky-400/10', iconColor: 'text-blue-600' },
+  { icon: Truck,    title: '$10 Flat Shipping',     description: 'FedEx Ground anywhere in the U.S. Fast, reliable, flat-rate delivery.', color: 'from-blue-400/20 to-sky-400/10', iconColor: 'text-blue-600' },
 ];
 
 export function Features() {

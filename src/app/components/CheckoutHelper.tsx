@@ -85,7 +85,7 @@ export function useCheckout() {
 
       if (params.shippingUSD > 0) {
         items.push({
-          name: "Shipping (Houston, TX)",
+          name: "Shipping (FedEx Ground)",
           unitAmount: Math.round(params.shippingUSD * 100),
           quantity: 1,
         });

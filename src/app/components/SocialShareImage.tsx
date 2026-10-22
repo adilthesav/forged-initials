@@ -46,7 +46,7 @@ export const socialSharePresets: Record<string, SocialShareConfig> = {
   },
   product: {
     title: "Custom Letter Jewelry - 925 Sterling Silver | Forged Initials",
-    description: "Choose from A-Z letters in Small, Medium, or Large. Each piece handcrafted from 925 sterling silver. $3 per letter + flat $10 shipping to Houston.",
+    description: "Choose from A-Z letters in five sizes, Extra Small to Extra Large. Each piece handcrafted from 925 sterling silver. $1–$5 per letter + flat $10 shipping anywhere in the U.S.",
     imageUrl: getSocialShareImage('product'),
     imageAlt: "Sterling silver letter jewelry collection"
   },

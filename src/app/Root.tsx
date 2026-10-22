@@ -84,7 +84,7 @@ export function Root() {
           <SEOHead
             title="Frequently Asked Questions - Forged Initials"
             description="Find answers to common questions about our handcrafted sterling silver letter jewelry, pricing, shipping, materials, and custom orders."
-            keywords="FAQ, questions, answers, sterling silver jewelry, custom jewelry, jewelry pricing, shipping Houston"
+            keywords="FAQ, questions, answers, sterling silver jewelry, custom jewelry, jewelry pricing, shipping"
             page="faq"
           />
           <SchemaMarkup type={SchemaTypes.FAQ} />

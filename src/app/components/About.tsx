@@ -18,8 +18,8 @@ export function About() {
     },
     {
       icon: Truck,
-      title: 'Houston Delivery',
-      content: 'Serving the Houston area exclusively with $10 flat-rate FedEx Ground shipping. Local focus means faster delivery and personalized service.',
+      title: 'Nationwide Delivery',
+      content: 'Shipping anywhere in the U.S. with $10 flat-rate FedEx Ground. Made in Houston, delivered nationwide, with the same personal service on every order.',
     },
   ];
 

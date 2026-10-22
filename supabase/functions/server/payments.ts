@@ -93,7 +93,7 @@ const SIZE_PRICES = {
   'extra-large': 5,
 };
 
-// Shipping fee (flat rate for Houston local delivery)
+// Shipping fee (flat rate, anywhere in the U.S.)
 const SHIPPING_FEE = 10;
 
 // Bail pricing based on size
