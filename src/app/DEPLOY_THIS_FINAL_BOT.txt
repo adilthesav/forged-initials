@@ -205,7 +205,7 @@ serve(async (req) => {
         city: "Houston",
         stateOrProvinceCode: "TX",
         postalCode: "77082",
-        phoneNumber: "832-352-8778"
+        phoneNumber: "346-576-0945"
       };
       
       const testBody = {

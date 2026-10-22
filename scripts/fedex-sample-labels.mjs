@@ -19,7 +19,7 @@ const OUTPUT_DIR = 'fedex-sample-labels';
 
 // Same FROM address as the live server
 const SHIPPER = {
-  contact: { personName: 'Forged Initials', phoneNumber: '8323528778' },
+  contact: { personName: 'Forged Initials', phoneNumber: '3465760945' },
   address: {
     streetLines: ['16006 Crested Green Dr'],
     city: 'Houston',
