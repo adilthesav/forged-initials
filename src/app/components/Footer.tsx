@@ -83,7 +83,7 @@ export function Footer({ onNavigate }: FooterProps) {
           {/* CTA */}
           <div className="md:max-w-[220px]">
             <p className="text-white/70 text-sm font-semibold mb-2">Ready to order?</p>
-            <p className="text-white/40 text-xs mb-4 leading-relaxed">Custom letters handcrafted just for you. Houston delivery only.</p>
+            <p className="text-white/40 text-xs mb-4 leading-relaxed">Custom letters handcrafted just for you. Shipping anywhere in the U.S.</p>
             <a
               href="#custom-orders"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105"

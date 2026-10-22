@@ -147,12 +147,11 @@ export async function createFedExShipment(
   }
 ): Promise<ShipmentDetails> {
   try {
-    // Validate Houston-only shipping
-    const city = shippingAddress.city.toLowerCase().trim();
-    const state = shippingAddress.stateOrProvinceCode.toUpperCase().trim();
-    
-    if (state !== 'TX' || city !== 'houston') {
-      throw new Error(`Shipping validation failed: We currently only ship to Houston, Texas. Provided address: ${shippingAddress.city}, ${shippingAddress.stateOrProvinceCode}`);
+    // Validate U.S.-only shipping
+    const country = (shippingAddress.countryCode || 'US').toUpperCase().trim();
+
+    if (country !== 'US') {
+      throw new Error(`Shipping validation failed: We currently only ship within the United States. Provided country: ${country}`);
     }
 
     // MOCK MODE: Return fake shipping label for testing without API

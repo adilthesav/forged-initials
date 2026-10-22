@@ -365,7 +365,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
 
             <p className="text-[10px] text-center text-stone-400 leading-relaxed">
               {product.source === 'shopify'
-                ? '18k gold-plated stainless steel · Fulfilled by CJ · Ships 7–15 days'
+                ? '18k gold-plated stainless steel · Delivery in 7–15 days'
                 : '18k gold-plated stainless steel · Ships 5–7 business days · Houston, TX'}
             </p>
           </div>
@@ -521,6 +521,9 @@ export function ShopSection() {
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
+  // Hide the whole section until there are products to show
+  if (products.length === 0) return null;
+
   const filtered = activeCategory === 'All'
     ? products
     : products.filter(p => p.category === CAT_MAP[activeCategory]);
@@ -607,7 +610,7 @@ export function ShopSection() {
             <div className="mt-10 text-center">
               <p className="text-stone-400 text-xs flex items-center justify-center gap-1.5">
                 <Tag className="w-3 h-3" />
-                18k gold-plated stainless steel · Waterproof · Houston, TX · $10 FedEx Ground shipping
+                18k gold-plated stainless steel · Waterproof · Ships anywhere in the U.S.
               </p>
             </div>
           )}

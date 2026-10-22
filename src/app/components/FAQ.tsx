@@ -13,7 +13,7 @@ const faqs: FAQItem[] = [
   },
   {
     question: "How much does each letter cost?",
-    answer: "We offer five sizes with fixed pricing: Extra Small ($1), Small ($2), Medium ($3), Large ($4), and Extra Large ($5) per piece. Shipping is a flat $10 via FedEx Ground to Houston."
+    answer: "We offer five sizes with fixed pricing: Extra Small ($1), Small ($2), Medium ($3), Large ($4), and Extra Large ($5) per piece. Shipping is a flat $10 via FedEx Ground anywhere in the U.S."
   },
   {
     question: "Can I order multiple letters?",
@@ -25,11 +25,11 @@ const faqs: FAQItem[] = [
   },
   {
     question: "Where do you ship to?",
-    answer: "We currently only ship to Houston, Texas via FedEx Ground for a flat rate of $10. We specialize in serving the Houston community."
+    answer: "We ship anywhere in the United States via FedEx Ground for a flat rate of $10. Every piece is handcrafted in Houston, Texas."
   },
   {
     question: "How do I place an order?",
-    answer: "Select your desired letters (A-Z) and quantities, choose your size (Extra Small/Small/Medium/Large/Extra Large), enter your Houston shipping address, and pay securely via Stripe checkout (Card, Cash App, or Link). You'll receive a confirmation email with your order details."
+    answer: "Select your desired letters (A-Z) and quantities, choose your size (Extra Small/Small/Medium/Large/Extra Large), enter your U.S. shipping address, and pay securely via Stripe checkout (Card, Cash App, or Link). You'll receive a confirmation email with your order details."
   },
   {
     question: "How can I contact you?",
@@ -37,7 +37,7 @@ const faqs: FAQItem[] = [
   },
   {
     question: "How long does production take?",
-    answer: "Each piece is handcrafted to order. Production typically takes 2-5 business days, with delivery within 3-7 days after shipping via FedEx Ground to Houston."
+    answer: "Each piece is handcrafted to order. Production typically takes 2-5 business days, with delivery within 3-7 days after shipping via FedEx Ground."
   },
   {
     question: "Is this real sterling silver?",
