@@ -18,8 +18,39 @@ export interface ShipmentDetails {
   carrier: 'fedex';
   service: string;
   status: 'pending' | 'label_created' | 'shipped' | 'in_transit' | 'delivered';
+  error?: string; // Why the label couldn't be created, when status is 'pending'
   createdAt: string;
   updatedAt: string;
+}
+
+// Telegram alert to the owner when a label can't be created, so the order can be shipped by hand
+async function alertLabelFailure(orderId: string, address: ShippingAddress, errorMessage: string): Promise<void> {
+  try {
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+    const chatId = Deno.env.get('TELEGRAM_CHAT_ID');
+    if (!botToken || !chatId) {
+      console.warn('⚠️ Telegram not configured - label failure alert not sent');
+      return;
+    }
+
+    const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const text =
+      `🚨 <b>FEDEX LABEL FAILED</b>${orderId.startsWith('TEST-') ? ' (test)' : ''}\n\n` +
+      `📦 <b>Order:</b> ${escape(orderId)}\n` +
+      `👤 <b>Ship to:</b> ${escape(address.fullName || '')}, ${escape(address.city)}, ${escape(address.stateOrProvinceCode)} ${escape(address.postalCode)}\n\n` +
+      `❌ <b>FedEx said:</b> ${escape(errorMessage.slice(0, 500))}\n\n` +
+      `No tracking was sent to the customer. Create this label by hand in FedEx Ship Manager.`;
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    });
+    if (!response.ok) console.error('❌ Label failure alert failed:', await response.text());
+  } catch (alertError) {
+    // Never let the alert itself hide the original shipping error
+    console.error('❌ Error sending label failure alert:', alertError);
+  }
 }
 
 // FedEx API Configuration
@@ -30,6 +61,9 @@ const FEDEX_API_URL = FEDEX_USE_SANDBOX
   ? 'https://apis-sandbox.fedex.com' 
   : 'https://apis.fedex.com';
 const FEDEX_AUTH_URL = `${FEDEX_API_URL}/oauth/token`;
+
+// Recipients are always sent as residential, which FedEx ships as Ground Home Delivery
+const FEDEX_SERVICE_TYPE = 'GROUND_HOME_DELIVERY';
 
 console.log(`FedEx Mode: ${FEDEX_USE_MOCK ? 'MOCK (No API calls)' : FEDEX_USE_SANDBOX ? 'SANDBOX (Testing)' : 'PRODUCTION (Live)'}`);
 console.log(`FedEx API URL: ${FEDEX_API_URL}`);
@@ -162,7 +196,7 @@ export async function createFedExShipment(
         trackingNumber: mockTrackingNumber,
         labelUrl: 'https://example.com/mock-label.pdf',
         carrier: 'fedex',
-        service: 'FEDEX_GROUND',
+        service: FEDEX_SERVICE_TYPE,
         status: 'label_created',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -215,7 +249,7 @@ export async function createFedExShipment(
           },
         ],
         shipDatestamp: new Date().toISOString().split('T')[0],
-        serviceType: 'FEDEX_GROUND', // Free shipping using ground
+        serviceType: FEDEX_SERVICE_TYPE,
         packagingType: 'YOUR_PACKAGING',
         pickupType: 'USE_SCHEDULED_PICKUP',
         blockInsightVisibility: false,
@@ -267,7 +301,7 @@ export async function createFedExShipment(
         status: response.status,
         statusText: response.statusText,
         errorBody: error,
-        requestedService: 'FEDEX_GROUND',
+        requestedService: FEDEX_SERVICE_TYPE,
         destination: shippingAddress.city
       });
       throw new Error(`FedEx shipment failed: ${error}`);
@@ -281,7 +315,7 @@ export async function createFedExShipment(
       trackingNumber,
       labelUrl,
       carrier: 'fedex',
-      service: 'FEDEX_GROUND',
+      service: FEDEX_SERVICE_TYPE,
       status: 'label_created',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -296,48 +330,21 @@ export async function createFedExShipment(
   } catch (error) {
     console.error(`Error creating FedEx shipment for order ${orderId}:`, error);
     
-    // AUTO-FALLBACK TO MOCK MODE if FedEx API fails
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const isFedExAuthError = errorMessage.includes('FedEx authentication failed') || 
-                             errorMessage.includes('FORBIDDEN.ERROR') ||
-                             errorMessage.includes('could not authorize');
-    
-    if (isFedExAuthError && !FEDEX_USE_MOCK) {
-      console.warn(`⚠️ FedEx API authentication failed - falling back to MOCK MODE for order ${orderId}`);
-      console.warn('💡 To use real FedEx API, fix credentials or set FEDEX_USE_MOCK=true to acknowledge mock mode');
-      
-      // Create mock shipment as fallback
-      const mockTrackingNumber = `MOCK-FALLBACK-${Date.now()}`;
-      const mockShipment: ShipmentDetails = {
-        trackingNumber: mockTrackingNumber,
-        labelUrl: 'https://example.com/mock-fallback-label.pdf',
-        carrier: 'fedex',
-        service: 'FEDEX_GROUND',
-        status: 'pending', // Mark as pending since it's a fallback
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
 
-      // Store mock shipment details
-      await kv.set(`shipment:${orderId}`, mockShipment);
-      await kv.set(`tracking:${mockTrackingNumber}`, orderId);
-
-      console.log(`🎭 AUTO-FALLBACK: Mock shipment created for order ${orderId}: ${mockTrackingNumber}`);
-      
-      // Return the mock shipment instead of throwing error
-      return mockShipment;
-    }
-    
-    // Store pending shipment status for other errors
+    // Never hand out fake tracking: mark the order as needing a label and alert the owner
     const pendingShipment: ShipmentDetails = {
       carrier: 'fedex',
-      service: 'FEDEX_GROUND',
+      service: FEDEX_SERVICE_TYPE,
       status: 'pending',
+      error: errorMessage,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     await kv.set(`shipment:${orderId}`, pendingShipment);
-    
+
+    await alertLabelFailure(orderId, shippingAddress, errorMessage);
+
     throw error;
   }
 }
