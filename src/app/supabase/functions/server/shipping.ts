@@ -251,7 +251,7 @@ export async function createFedExShipment(
         shipDatestamp: new Date().toISOString().split('T')[0],
         serviceType: FEDEX_SERVICE_TYPE,
         packagingType: 'YOUR_PACKAGING',
-        pickupType: 'USE_SCHEDULED_PICKUP',
+        pickupType: 'DROPOFF_AT_FEDEX_LOCATION', // Packages are dropped off, not picked up
         blockInsightVisibility: false,
         shippingChargesPayment: {
           paymentType: 'SENDER',
