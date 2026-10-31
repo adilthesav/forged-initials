@@ -14,6 +14,8 @@ import { TestSystem } from './components/TestSystem';
 import { QuickEmailGenerator } from './components/QuickEmailGenerator';
 import { ShopifyCallback } from './components/ShopifyCallback';
 import { OwnerBlogPanel } from './components/OwnerBlogPanel';
+import { PayOrderPage } from './components/PayOrderPage';
+import { OwnerOrdersPanel } from './components/OwnerOrdersPanel';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +30,8 @@ export const router = createBrowserRouter([
       { path: 'blog/:slug', Component: BlogPostPage },
       { path: 'shop', Component: () => <div className="pt-4"><ShopSection /></div> },
       { path: 'admin-shop', Component: OwnerProductPanel },
+      { path: 'admin-orders', Component: OwnerOrdersPanel },
+      { path: 'pay/:token', Component: PayOrderPage },
       { path: 'admin-blog', Component: OwnerBlogPanel },
       { path: 'test', Component: () => <div className="pt-20 pb-20 bg-slate-50 min-h-screen"><TestSystem onNavigate={() => {}} /></div> },
       { path: 'email', Component: () => <div className="pt-20 pb-20 bg-gradient-to-b from-green-50 to-emerald-50 min-h-screen"><QuickEmailGenerator onNavigate={() => {}} /></div> },

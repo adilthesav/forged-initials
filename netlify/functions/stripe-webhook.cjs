@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { getOrder, markPaid } = require('../lib/orders.cjs');
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
 
 function verifyStripeSignature(rawBody, sigHeader, secret) {
@@ -66,9 +67,9 @@ exports.handler = async (event) => {
   const sig = event.headers['stripe-signature'];
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (secret && sig) {
-    const valid = verifyStripeSignature(event.body, sig, secret);
-    if (!valid) return { statusCode: 400, body: 'Invalid signature' };
+  // Never trust an unsigned request: it could fake a sale
+  if (!secret || !sig || !verifyStripeSignature(event.body, sig, secret)) {
+    return { statusCode: 400, body: 'Invalid signature' };
   }
 
   let stripeEvent;
@@ -80,7 +81,14 @@ exports.handler = async (event) => {
 
   if (stripeEvent.type === 'checkout.session.completed') {
     const session = stripeEvent.data.object;
-    const { productId, quantity, selectedVid } = session.metadata || {};
+    const { productId, quantity, selectedVid, orderRequestId } = session.metadata || {};
+
+    // Custom orders paid through a private payment link
+    if (orderRequestId) {
+      const order = await getOrder(orderRequestId);
+      if (order && session.payment_status === 'paid') await markPaid(order, session);
+      return { statusCode: 200, body: JSON.stringify({ received: true }) };
+    }
 
     const supaHeaders = {
       'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,

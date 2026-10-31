@@ -10,7 +10,8 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
   const token = event.headers['x-admin-token'];
-  const adminToken = process.env.ADMIN_TOKEN || 'forgedadmin2026';
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken) return { statusCode: 500, headers: cors, body: JSON.stringify({ error: 'Not configured' }) };
   if (token !== adminToken) {
     return { statusCode: 401, headers: cors, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
