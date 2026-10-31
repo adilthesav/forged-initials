@@ -3,7 +3,7 @@ import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
-import { Mail, Clock, Instagram, Facebook, Twitter, Send, Paperclip, X, ImageIcon, FileText } from 'lucide-react';
+import { Mail, Phone, Clock, Instagram, Facebook, Twitter, Send, Paperclip, X, ImageIcon, FileText } from 'lucide-react';
 import { useState, useRef } from 'react';
 
 // Compress an image File to a JPEG under maxBytes using Canvas
@@ -239,6 +239,15 @@ export function Contact() {
               <CardContent className="p-5 md:p-8">
                 <h3 className="mb-4 md:mb-6 text-xl md:text-2xl">Contact Information</h3>
                 <div className="space-y-4 md:space-y-6">
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="mb-1 text-base md:text-lg">Phone</h4>
+                      <a href="tel:+13465760945" className="text-sm md:text-base text-primary hover:underline">(346) 576-0945</a>
+                    </div>
+                  </div>
                   <div className="flex items-start gap-3 md:gap-4">
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Mail className="w-4 h-4 md:w-5 md:h-5 text-primary" />
