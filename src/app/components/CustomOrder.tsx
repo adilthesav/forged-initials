@@ -1222,7 +1222,7 @@ export function CustomOrder() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600">
                         <div className="flex items-start gap-2 bg-white/70 rounded-lg p-2.5">
                           <span className="text-lg leading-none">💬</span>
-                          <span>Chat with us directly — no bots, real person</span>
+                          <span>Adil personally confirms every design</span>
                         </div>
                         <div className="flex items-start gap-2 bg-white/70 rounded-lg p-2.5">
                           <span className="text-lg leading-none">✅</span>
