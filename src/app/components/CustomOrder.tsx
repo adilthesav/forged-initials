@@ -1204,7 +1204,7 @@ export function CustomOrder() {
                         <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
                       </svg>
                       <div>
-                        <p className="text-white font-bold text-base leading-tight">Talk to us first</p>
+                        <p className="text-white font-bold text-base leading-tight">Talk to us first on any available platforms</p>
                         <p className="text-white/80 text-xs">No payment needed to start a conversation</p>
                       </div>
                     </div>
@@ -1212,7 +1212,7 @@ export function CustomOrder() {
                     {/* Body */}
                     <div className="px-5 py-4 space-y-3">
                       <p className="text-sm text-slate-700 leading-relaxed">
-                        <strong>We need to communicate first</strong> before any order can move forward. Call us or send a message on Telegram so we can go over your design together — confirm the letters, sizes, and every detail. We only ask for payment once <strong>you're happy and everything is set.</strong>
+                        <strong>We need to communicate first</strong> before any order can move forward. Call or message us so we can go over your design together — confirm the letters, sizes, and every detail. We only ask for payment once <strong>you're happy and everything is set.</strong>
                       </p>
 
                       <div className="bg-[#229ED9]/10 border border-[#229ED9]/20 rounded-xl px-4 py-3 text-xs text-[#0e6a99] leading-relaxed">
@@ -1235,12 +1235,12 @@ export function CustomOrder() {
                       </div>
 
                       <a
-                        href="tel:+13465760945"
+                        href="tel:+14134323002"
                         className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-semibold text-white text-sm transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
                         style={{ background: '#16a34a' }}
                       >
                         <Phone className="w-5 h-5" />
-                        Call us at (346) 576-0945
+                        Call us at (413) 432-3002
                       </a>
 
                       <a
@@ -1253,7 +1253,7 @@ export function CustomOrder() {
                         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
                           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
                         </svg>
-                        Message us on Telegram @adilali08
+                        Message us on Telegram
                       </a>
 
                       <div className="grid grid-cols-2 gap-2">
