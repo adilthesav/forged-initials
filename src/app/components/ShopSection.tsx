@@ -7,9 +7,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 interface Variant {
   vid: string;
   name: string;
-  cj_cost?: number;
   price_cents?: number;
-  warehouseCountryCode?: string;
 }
 
 interface Product {

@@ -17,52 +17,6 @@ function verifyStripeSignature(rawBody, sigHeader, secret) {
   });
 }
 
-async function getCJToken() {
-  const res = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: process.env.CJ_EMAIL, password: process.env.CJ_API_KEY }),
-  });
-  const data = await res.json();
-  if (!data.data?.accessToken) throw new Error('CJ auth failed');
-  return data.data.accessToken;
-}
-
-async function createCJOrder(vid, quantity, session, fromCountryCode = 'CN') {
-  const token = await getCJToken();
-  const ship = session.shipping_details || {};
-  const addr = ship.address || {};
-  const phone = session.customer_details?.phone || '';
-  const email = session.customer_details?.email || '';
-  const name = ship.name || session.customer_details?.name || 'Customer';
-
-  const payload = {
-    orderNumber: `FI-${Date.now()}`,
-    fromCountryCode,
-    shippingZip: addr.postal_code || '',
-    shippingCountryCode: addr.country || 'US',
-    shippingCountry: 'United States',
-    shippingProvince: addr.state || '',
-    shippingCity: addr.city || '',
-    shippingAddress: addr.line1 || '',
-    shippingAddress2: addr.line2 || '',
-    shippingCustomerName: name,
-    shippingPhone: phone.replace(/\D/g, '') || '0000000000',
-    remark: 'Forged Initials order',
-    email,
-    products: [{ vid, quantity: parseInt(quantity) || 1 }],
-  };
-
-  const res = await fetch('https://developers.cjdropshipping.com/api2.0/v1/shopping/order/createOrderV2', {
-    method: 'POST',
-    headers: { 'CJ-Access-Token': token, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  console.log('CJ order result:', JSON.stringify(data));
-  return data;
-}
-
 exports.handler = async (event) => {
   const sig = event.headers['stripe-signature'];
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -99,7 +53,7 @@ exports.handler = async (event) => {
     let prod = null;
     if (productId) {
       const getRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,name,cj_pid,cj_vid,variants`,
+        `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,name,variants`,
         { headers: supaHeaders }
       );
       [prod] = await getRes.json();
@@ -114,30 +68,8 @@ exports.handler = async (event) => {
       });
     }
 
-    const vidToUse = selectedVid || (prod && prod.cj_vid) || '';
     const variants = Array.isArray(prod?.variants) ? prod.variants : [];
-    const selectedVariant = variants.find(v => v.vid === vidToUse);
-    const fromCountry = selectedVariant?.warehouseCountryCode || 'CN';
-
-    if (vidToUse && prod) {
-      try {
-        await createCJOrder(vidToUse, quantity || '1', session, fromCountry);
-      } catch (err) {
-        console.error('CJ order failed:', err.message);
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        const chatId = process.env.TELEGRAM_CHAT_ID;
-        if (botToken && chatId) {
-          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: `⚠️ CJ ORDER FAILED\nProduct: ${prod?.name || productId}\nSPU (cj_pid): ${prod?.cj_pid || '—'}\nVariant: ${selectedVariant?.name || vidToUse}\nVID (SKU): ${vidToUse || '—'}\nQty: ${quantity || '1'}\nError: ${err.message}\n\nLog into CJ dashboard and place manually.`,
-            }),
-          }).catch(() => {});
-        }
-      }
-    }
+    const selectedVariant = variants.find(v => v.vid === selectedVid);
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -174,9 +106,6 @@ exports.handler = async (event) => {
         '📦 Ship To',
         fullAddress ? fullAddress.split('\n').map(l => `   ${l}`).join('\n') : '   (no address)',
         '─────────────────',
-        `🏭 Warehouse: ${fromCountry}`,
-        prod?.cj_pid ? `📦 SPU (cj_pid): ${prod.cj_pid}` : '',
-        vidToUse ? `🔑 VID (SKU): ${vidToUse}` : '',
         `🧾 Order #: ${orderNum}`,
       ].filter(Boolean).join('\n');
 
