@@ -9,7 +9,7 @@ import { SEOHead, SEOPresets } from './components/SEOHead';
 import { SchemaMarkup, SchemaTypes } from './components/SchemaMarkup';
 import { usePerformanceOptimization } from './hooks/usePerformanceOptimization';
 
-type Page = 'home' | 'contact' | 'faq' | 'track' | 'blog' | 'picks';
+type Page = 'home' | 'contact' | 'faq' | 'track' | 'blog' | 'picks' | 'selected';
 
 function pathToPage(pathname: string): Page {
   if (pathname === '/contact') return 'contact';
@@ -17,6 +17,7 @@ function pathToPage(pathname: string): Page {
   if (pathname === '/track') return 'track';
   if (pathname.startsWith('/blog')) return 'blog';
   if (pathname === '/picks') return 'picks';
+  if (pathname === '/selected') return 'selected';
   return 'home';
 }
 
@@ -27,6 +28,7 @@ const PAGE_TO_PATH: Record<Page, string> = {
   track: '/track',
   blog: '/blog',
   picks: '/picks',
+  selected: '/selected',
 };
 
 export function Root() {
@@ -69,6 +71,14 @@ export function Root() {
           />
           <SchemaMarkup type={SchemaTypes.FAQ} />
         </>
+      )}
+      {currentPage === 'selected' && (
+        <SEOHead
+          title="Selected by Us - Forged Initials"
+          description="Jewelry we choose from other brands and ship ourselves. These pieces aren't made by Forged Initials."
+          keywords="selected jewelry, curated jewelry"
+          page="selected"
+        />
       )}
       {currentPage === 'picks' && (
         <SEOHead

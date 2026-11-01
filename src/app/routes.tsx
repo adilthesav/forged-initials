@@ -28,6 +28,7 @@ export const router = createBrowserRouter([
       { path: 'blog', Component: BlogPage },
       { path: 'blog/:slug', Component: BlogPostPage },
       { path: 'shop', Component: () => <div className="pt-4"><ShopSection /></div> },
+      { path: 'selected', Component: () => <div className="pt-4"><ShopSection type="selected" /></div> },
       { path: 'picks', Component: PromotedPicks },
       { path: 'admin-shop', Component: OwnerProductPanel },
       { path: 'admin-orders', Component: OwnerOrdersPanel },

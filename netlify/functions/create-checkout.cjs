@@ -1,5 +1,6 @@
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
 const SITE_URL = 'https://forged-initials.com';
+const FLAT_SHIPPING_CENTS = 1000;
 
 function extractImageUrl(raw) {
   if (!raw) return '';
@@ -72,6 +73,10 @@ exports.handler = async (event) => {
     params.append('metadata[selectedVid]', selectedVid);
     params.append('shipping_address_collection[allowed_countries][0]', 'US');
     params.append('phone_number_collection[enabled]', 'true');
+    params.append('shipping_options[0][shipping_rate_data][type]', 'fixed_amount');
+    params.append('shipping_options[0][shipping_rate_data][display_name]', 'FedEx Ground');
+    params.append('shipping_options[0][shipping_rate_data][fixed_amount][amount]', String(FLAT_SHIPPING_CENTS));
+    params.append('shipping_options[0][shipping_rate_data][fixed_amount][currency]', 'usd');
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',

@@ -53,7 +53,7 @@ exports.handler = async (event) => {
     let prod = null;
     if (productId) {
       const getRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,name,variants`,
+        `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,name,variants,product_type`,
         { headers: supaHeaders }
       );
       [prod] = await getRes.json();
@@ -94,6 +94,7 @@ exports.handler = async (event) => {
         '💰 NEW SALE — Forged Initials',
         '─────────────────',
         `🛍  Product: ${prod?.name || productId || 'Unknown'}`,
+        prod?.product_type === 'selected' ? '🏷 Selected by Us: ship from your stock' : '',
         variantName ? `📐 Variant: ${variantName}` : '',
         `🔢 Qty: ${qty}`,
         `💵 Amount: $${amount}`,

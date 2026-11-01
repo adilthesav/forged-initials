@@ -4,7 +4,7 @@ import { Home, Package, Info, HelpCircle, MessageCircle, Sparkles, ShoppingBag, 
 const logo = '/logo.png';
 
 interface HeaderProps {
-  currentPage: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop' | 'picks';
+  currentPage: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop' | 'picks' | 'selected';
   onNavigate: (page: 'home' | 'contact' | 'faq' | 'test' | 'email' | 'track' | 'blog' | 'shop') => void;
 }
 

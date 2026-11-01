@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
 
 // Promoted products sell elsewhere, so they only need a link and never carry a price or stock
 function checkProduct(body) {
-  if (body.product_type !== undefined && !['crafted', 'promoted'].includes(body.product_type)) {
+  if (body.product_type !== undefined && !['crafted', 'selected', 'promoted'].includes(body.product_type)) {
     return 'Unknown product type';
   }
   if (body.product_type !== 'promoted') return null;
