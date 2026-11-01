@@ -240,7 +240,7 @@ export function Contact() {
               <CardContent className="p-5 md:p-8">
                 <h3 className="mb-2 text-xl md:text-2xl">Talk with us one on one</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-4">
-                  Book a free 15-minute phone call to design a custom piece, change a request before paying, ask about bulk orders, or get help with an order. A call doesn't change or cancel an order by itself.
+                  Book a free 15-minute phone call with a real person, not an AI assistant, to design a custom piece, change a request before paying, ask about bulk orders, or get help with an order. A call doesn't change or cancel an order by itself.
                 </p>
                 <Button asChild className="w-full">
                   <a href={BOOK_CALL_URL} target="_blank" rel="noopener noreferrer">
