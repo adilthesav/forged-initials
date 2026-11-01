@@ -58,6 +58,9 @@ export function CustomOrder() {
   } | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
+  const [requestNumber, setRequestNumber] = useState('');
+  const [sendingRequest, setSendingRequest] = useState(false);
+  const [website, setWebsite] = useState(''); // Hidden field that only bots fill in
   const [processingPayment, setProcessingPayment] = useState(false);
   const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
 
@@ -81,7 +84,6 @@ export function CustomOrder() {
         setBailsCart(orderState.bailsCart);
         setProngsCart(orderState.prongsCart);
         setPriceBreakdown(orderState.priceBreakdown);
-        setShowPayment(true);
         
         // Clear the stored state after restoring
         localStorage.removeItem('forged_order_state');
@@ -227,7 +229,7 @@ export function CustomOrder() {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form - require at least one item (letters, bails, or prongs)
@@ -282,23 +284,30 @@ export function CustomOrder() {
       return;
     }
 
-    // Save order state before showing payment
-    const orderState = {
-      formData,
-      cartItems,
-      bailsCart,
-      prongsCart,
-      priceBreakdown
-    };
-    console.log('💾 Saving order state to localStorage:', orderState);
-    localStorage.setItem('forged_order_state', JSON.stringify(orderState));
-    console.log('✅ Order state saved successfully');
-    
-    // Debug: Verify it was saved
-    const saved = localStorage.getItem('forged_order_state');
-    console.log('🔍 Verification - State in localStorage:', saved ? 'EXISTS' : 'MISSING');
-
-    setShowPayment(true);
+    // Requests are saved for review. Payment happens later through a private link.
+    setSendingRequest(true);
+    try {
+      const response = await fetch('/.netlify/functions/order-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          website,
+          letters: cartItems.map((item) => ({ letter: item.letter, size: item.size, quantity: item.quantity })),
+          bails: bailsCart.map((bail) => ({ size: bail.size, quantity: bail.quantity })),
+          prongs: prongsCart.map((prong) => ({ size: prong.size, quantity: prong.quantity })),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      localStorage.removeItem('forged_order_state');
+      setRequestNumber(data.orderNumber);
+      window.scrollTo({ top: document.getElementById('custom-orders')?.offsetTop ?? 0 });
+    } catch (error) {
+      alert(error instanceof Error && error.message ? error.message : 'Something went wrong. Please try again or message us.');
+    } finally {
+      setSendingRequest(false);
+    }
   };
 
   const handlePaymentMethodSelect = (method: PaymentMethod) => {
@@ -387,6 +396,21 @@ export function CustomOrder() {
     updatedItems[index].size = newSize;
     setCartItems(updatedItems);
   };
+
+  if (requestNumber) {
+    return (
+      <section id="custom-orders" className="py-12 md:py-20 px-4">
+        <Card className="max-w-xl mx-auto">
+          <CardContent className="p-6 md:p-8 text-center">
+            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+            <h2 className="text-2xl font-semibold mb-2">We got your request!</h2>
+            <p className="text-slate-600 mb-2">Your request number is <strong>{requestNumber}</strong>. Nothing has been charged.</p>
+            <p className="text-slate-600">We'll reach out to confirm your design. Once you're happy with every detail, we'll send you a private link to pay.</p>
+          </CardContent>
+        </Card>
+      </section>
+    );
+  }
 
   if (orderComplete) {
     return (
@@ -1359,9 +1383,20 @@ export function CustomOrder() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" size="lg">
-                  Proceed to Payment
+                <input
+                  type="text"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  className="hidden"
+                />
+                <Button type="submit" className="w-full" size="lg" disabled={sendingRequest}>
+                  {sendingRequest ? 'Sending…' : 'Send My Request'}
                 </Button>
+                <p className="text-xs text-center text-slate-500">No payment now. We'll confirm your design first, then send a private payment link.</p>
               </form>
             </CardContent>
           </Card>

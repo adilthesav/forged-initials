@@ -110,6 +110,8 @@ const PRONG_PRICES = {
   's': 1.75,
   'm': 2.25,
   'l': 2.75,
+  'half-carat': 1.75,
+  '1-carat': 2.75,
 };
 
 // Assembly fees for pendant styles
@@ -180,7 +182,7 @@ export function calculateOrderPriceBreakdown(
   // Bail items
   if (bailOptions && bailOptions.length > 0) {
     for (const bail of bailOptions) {
-      const bailPrice = bail.price || BAIL_PRICES[bail.size as keyof typeof BAIL_PRICES] || 0;
+      const bailPrice = BAIL_PRICES[bail.size as keyof typeof BAIL_PRICES] || 0;
       hardwareItems.push({
         type: 'Bail',
         size: bail.size.toUpperCase(),
@@ -194,7 +196,7 @@ export function calculateOrderPriceBreakdown(
   // Prong items
   if (prongOptions && prongOptions.length > 0) {
     for (const prong of prongOptions) {
-      const prongPrice = prong.price || PRONG_PRICES[prong.size as keyof typeof PRONG_PRICES] || 0;
+      const prongPrice = PRONG_PRICES[prong.size as keyof typeof PRONG_PRICES] || 0;
       hardwareItems.push({
         type: 'Prong',
         size: prong.size.toUpperCase(),
