@@ -1,8 +1,8 @@
+import { verifyAdminPassword } from '../utils/adminAuth';
 import { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Eye, BookOpen, Search, X, Save, ExternalLink, AlertTriangle } from 'lucide-react';
 import { BLOG_POSTS, BLOG_CATEGORIES, type BlogPost } from '../data/blogPosts';
 
-const ADMIN_TOKEN = 'forgedadmin2026';
 const STORAGE_KEY = 'forged_blog_posts';
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ const BLANK_POST: BlogPost = {
 function AuthGate({ onAuth }: { onAuth: () => void }) {
   const [pw, setPw] = useState('');
   const [err, setErr] = useState(false);
-  const submit = () => { if (pw === ADMIN_TOKEN) onAuth(); else { setErr(true); setPw(''); } };
+  const submit = async () => { if (await verifyAdminPassword(pw)) onAuth(); else { setErr(true); setPw(''); } };
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-stone-50 to-white px-4">
       <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-sm border border-stone-100">

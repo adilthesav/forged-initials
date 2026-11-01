@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       
       // Check admin password
       const adminPassword = req.headers.get('X-Admin-Password');
-      const correctPassword = Deno.env.get('ADMIN_PASSWORD') || 'forgedadmin2026'; // Default fallback
+      const correctPassword = Deno.env.get('ADMIN_PASSWORD');
       
       if (!adminPassword) {
         console.log('❌ No admin password provided');
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
       
       // Check admin password
       const adminPassword = req.headers.get('X-Admin-Password');
-      const correctPassword = Deno.env.get('ADMIN_PASSWORD') || 'forgedadmin2026';
+      const correctPassword = Deno.env.get('ADMIN_PASSWORD');
       
       if (!adminPassword || adminPassword !== correctPassword) {
         console.log('❌ Unauthorized delete attempt');

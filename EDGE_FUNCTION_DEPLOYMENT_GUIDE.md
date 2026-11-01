@@ -62,4 +62,4 @@ Make sure these are set in your Supabase project settings:
 - `FEDEX_CLIENT_SECRET` (optional, for shipping)
 - `TELEGRAM_BOT_TOKEN` (optional, for notifications)
 - `TELEGRAM_CHAT_ID` (optional, for notifications)
-- `ADMIN_PASSWORD` (optional, defaults to: forgedadmin2026)
+- `ADMIN_PASSWORD` (required for the admin dashboard)
