@@ -31,12 +31,12 @@ exports.handler = async (event) => {
     const { productId, productName, priceInCents, imageUrl, quantity = 1, selectedVid = '' } = JSON.parse(event.body);
 
     const checkRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,active,price_cents,variants,image_url,name`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&select=quantity_remaining,active,price_cents,variants,image_url,name,product_type`,
       { headers: { 'apikey': process.env.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
     );
     const [product] = await checkRes.json();
 
-    if (!product || !product.active) {
+    if (!product || !product.active || product.product_type === 'promoted') {
       return { statusCode: 404, headers: cors, body: JSON.stringify({ error: 'Product not found' }) };
     }
     if (product.quantity_remaining < quantity) {

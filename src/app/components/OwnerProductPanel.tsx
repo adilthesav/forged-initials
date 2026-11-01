@@ -1,34 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAdminToken, verifyAdminPassword } from '../utils/adminAuth';
-import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, Type } from 'lucide-react';
-
-// ── Personalization config (shared with ShopSection via localStorage) ─────────
-const PRODUCT_CONFIG_KEY = 'forged_product_config';
-
-interface PersonalizationConfig {
-  enabled: boolean;
-  label: string;
-  shopify_url?: string;
-}
-
-function loadConfig(): Record<string, PersonalizationConfig> {
-  try {
-    const raw = localStorage.getItem(PRODUCT_CONFIG_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveConfig(cfg: Record<string, PersonalizationConfig>) {
-  localStorage.setItem(PRODUCT_CONFIG_KEY, JSON.stringify(cfg));
-}
+import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, ExternalLink } from 'lucide-react';
 
 interface Variant {
   vid: string;
   name: string;
   price_cents?: number;
 }
+
+type ProductType = 'crafted' | 'promoted';
 
 interface Product {
   id?: string;
@@ -40,13 +20,19 @@ interface Product {
   quantity_remaining: number;
   active: boolean;
   variants?: Variant[];
+  product_type?: ProductType;
+  affiliate_url?: string | null;
 }
 
-const BLANK: Product = {
+const blankProduct = (product_type: ProductType): Product => ({
   name: '', description: '', price_cents: 0,
   image_url: '', category: 'pendant',
-  quantity_remaining: 1, active: true,
-};
+  quantity_remaining: product_type === 'promoted' ? 0 : 1, active: true,
+  product_type,
+  affiliate_url: null,
+});
+
+const isPromoted = (p: Product) => p.product_type === 'promoted';
 
 async function adminFetch(method: string, body?: object) {
   const res = await fetch('/.netlify/functions/admin-products', {
@@ -54,7 +40,9 @@ async function adminFetch(method: string, body?: object) {
     headers: { 'Content-Type': 'application/json', 'x-admin-token': getAdminToken() },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || 'The change could not be saved');
+  return data;
 }
 
 function shortVariantName(varName: string, prodName: string): string {
@@ -168,7 +156,9 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
   const [form, setForm] = useState<Product>(initial);
   const set = (k: keyof Product, v: any) => setForm(f => ({ ...f, [k]: v }));
 
+  const promoted = isPromoted(form);
   const hasVariants = Array.isArray(form.variants) && form.variants.length > 0;
+  const canSave = !!form.name && (promoted ? !!form.affiliate_url?.trim() : !!form.price_cents);
 
   const updateVariantPrice = (vid: string, price_cents: number) => {
     setForm(f => ({
@@ -190,13 +180,13 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
 
   return (
     <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
-      <h3 className="font-bold text-stone-800 text-sm">{form.id ? 'Edit Product' : 'Add New Product'}</h3>
+      <h3 className="font-bold text-stone-800 text-sm">{form.id ? 'Edit' : 'Add'} {promoted ? 'Promoted Product' : 'Crafted Product'}</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Product Name *</label>
           <input value={form.name} onChange={e => set('name', e.target.value)}
-            placeholder="e.g. Gold Initial Ring — Letter A"
+            placeholder={promoted ? 'e.g. Vintage Silver Locket' : 'e.g. Silver Letter A Pendant'}
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         </div>
         <div>
@@ -218,6 +208,15 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 resize-none" />
       </div>
 
+      {promoted ? (
+        <div>
+          <label className="text-xs font-semibold text-stone-500 mb-1 block">Your eBay or Amazon Link *</label>
+          <input type="url" value={form.affiliate_url || ''} onChange={e => set('affiliate_url', e.target.value)}
+            placeholder="https://…"
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
+          <p className="text-[10px] text-stone-400 mt-0.5">Use the link from your affiliate account so the sale is credited to you. Customers see the current price on the seller's site.</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">
@@ -238,6 +237,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         </div>
       </div>
+      )}
 
       <div>
         <label className="text-xs font-semibold text-stone-500 mb-1 block">Image URL</label>
@@ -248,7 +248,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
       </div>
 
       {/* Variant price editor for existing products */}
-      {hasVariants && (
+      {hasVariants && !promoted && (
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-2 block">
             Variant Prices ({form.variants!.length} variants)
@@ -270,7 +270,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button onClick={() => onSave(form)} disabled={saving || !form.name || !form.price_cents}
+        <button onClick={() => onSave(form)} disabled={saving || !canSave}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}>
           <Save className="w-3.5 h-3.5" />{saving ? 'Saving…' : 'Save Product'}
@@ -280,203 +280,6 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
           <X className="w-3.5 h-3.5" /> Cancel
         </button>
       </div>
-    </div>
-  );
-}
-
-// ── PersonalizationPanel ──────────────────────────────────────────────────────
-function PersonalizationPanel() {
-  const [config, setConfig] = useState<Record<string, PersonalizationConfig>>(loadConfig);
-  const [newProductId, setNewProductId] = useState('');
-  const [newUrl, setNewUrl] = useState('');
-  const [newPersonEnabled, setNewPersonEnabled] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const [toast, setToast] = useState('');
-
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
-
-  const addRule = () => {
-    const id = newProductId.trim();
-    const url = newUrl.trim();
-    if (!id || !url) return;
-    const next = {
-      ...config,
-      [id]: {
-        enabled: newPersonEnabled,
-        label: newLabel.trim() || 'Enter your text',
-        shopify_url: url,
-      },
-    };
-    setConfig(next);
-    saveConfig(next);
-    setNewProductId('');
-    setNewUrl('');
-    setNewLabel('');
-    setNewPersonEnabled(false);
-    showToast('Redirect rule saved');
-  };
-
-  const removeRule = (id: string) => {
-    const next = { ...config };
-    delete next[id];
-    setConfig(next);
-    saveConfig(next);
-    showToast('Rule removed');
-  };
-
-  const updateRule = (id: string, updates: Partial<PersonalizationConfig>) => {
-    const next = { ...config, [id]: { ...config[id], ...updates } };
-    setConfig(next);
-    saveConfig(next);
-  };
-
-  const rules = Object.entries(config);
-
-  return (
-    <div className="space-y-5">
-      <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs text-stone-500 leading-relaxed">
-        Paste a Shopify product page URL and the product ID it matches in your shop. When a customer clicks "Buy Now" it redirects directly to that page. Optionally enable a personalization text field on the product modal.
-      </div>
-
-      {/* ── Add form ── */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4">
-        <h3 className="font-bold text-stone-800 text-sm">Add Redirect</h3>
-
-        <div>
-          <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5 block">
-            Product ID
-            <span className="normal-case tracking-normal font-normal text-stone-300 ml-1">— found in My Products (copy ID from edit form) or use shopify_XXXXX</span>
-          </label>
-          <input
-            value={newProductId}
-            onChange={e => setNewProductId(e.target.value)}
-            placeholder="e.g. shopify_9876543210 or a UUID"
-            className="w-full px-3 py-2 text-sm font-mono border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
-          />
-        </div>
-
-        <div>
-          <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5 block">
-            Shopify Product URL
-          </label>
-          <input
-            type="url"
-            value={newUrl}
-            onChange={e => setNewUrl(e.target.value)}
-            placeholder="https://shop.forged-initials.com/products/your-product"
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
-          />
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <input
-            type="checkbox"
-            id="new-person-toggle"
-            checked={newPersonEnabled}
-            onChange={e => setNewPersonEnabled(e.target.checked)}
-            className="w-4 h-4 accent-amber-500"
-          />
-          <label htmlFor="new-person-toggle" className="text-xs font-semibold text-stone-600">
-            Enable personalization text input on this product
-          </label>
-        </div>
-
-        {newPersonEnabled && (
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5 block">
-              Label shown to customer
-            </label>
-            <input
-              value={newLabel}
-              onChange={e => setNewLabel(e.target.value)}
-              placeholder="e.g. Enter your initials"
-              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 transition-all"
-            />
-          </div>
-        )}
-
-        <button
-          onClick={addRule}
-          disabled={!newProductId.trim() || !newUrl.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 hover:scale-105"
-          style={{ background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800' }}
-        >
-          <Plus className="w-4 h-4" /> Save Redirect
-        </button>
-      </div>
-
-      {/* ── Existing rules ── */}
-      {rules.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
-            Active Rules ({rules.length})
-          </p>
-          {rules.map(([id, cfg]) => (
-            <div key={id} className="bg-white border border-stone-100 rounded-2xl p-4 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-mono text-stone-400 truncate select-all">{id}</p>
-                  {cfg.shopify_url && (
-                    <a
-                      href={cfg.shopify_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-amber-600 hover:underline truncate block mt-0.5"
-                    >
-                      → {cfg.shopify_url}
-                    </a>
-                  )}
-                </div>
-                <button
-                  onClick={() => removeRule(id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 flex-shrink-0 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={() => updateRule(id, { enabled: !cfg.enabled })}
-                  className="relative w-9 h-5 rounded-full transition-all duration-200 flex-shrink-0"
-                  style={{ background: cfg.enabled ? '#c9a84c' : '#e7e5e4' }}
-                >
-                  <span
-                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
-                    style={{ left: cfg.enabled ? '17px' : '2px' }}
-                  />
-                </button>
-                <span className="text-xs text-stone-500">
-                  {cfg.enabled ? 'Personalization text on' : 'Personalization text off'}
-                </span>
-              </div>
-
-              {cfg.enabled && (
-                <input
-                  value={cfg.label || ''}
-                  onChange={e => updateRule(id, { label: e.target.value })}
-                  placeholder="Label shown to customer"
-                  className="w-full px-3 py-1.5 text-xs border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition-all"
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {rules.length === 0 && (
-        <div className="text-center py-14 text-stone-300">
-          <Type className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium text-stone-400">No redirect rules yet.</p>
-          <p className="text-xs text-stone-300 mt-1">Add one above to send "Buy Now" straight to a Shopify product page.</p>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-stone-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl">
-          {toast}
-        </div>
-      )}
     </div>
   );
 }
@@ -514,7 +317,7 @@ export function OwnerProductPanel() {
 }
 
 function ProductPanel() {
-  const [tab, setTab] = useState<'products' | 'personalization'>('products');
+  const [tab, setTab] = useState<ProductType>('crafted');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -523,12 +326,20 @@ function ProductPanel() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await adminFetch('GET');
-    setProducts(Array.isArray(data) ? data : []);
+    try {
+      const data = await adminFetch('GET');
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      alert(e.message);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const crafted = products.filter(p => !isPromoted(p));
+  const promoted = products.filter(isPromoted);
+  const shown = tab === 'crafted' ? crafted : promoted;
 
   const handleSave = async (product: Product) => {
     setSaving(true);
@@ -537,6 +348,8 @@ function ProductPanel() {
       await load();
       setEditing(null);
       setAdding(false);
+    } catch (e: any) {
+      alert(e.message);
     } finally { setSaving(false); }
   };
 
@@ -547,8 +360,12 @@ function ProductPanel() {
   };
 
   const handleToggleActive = async (product: Product) => {
-    await adminFetch('PATCH', { id: product.id, active: !product.active });
-    await load();
+    try {
+      await adminFetch('PATCH', { id: product.id, active: !product.active });
+      await load();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleStockChange = async (product: Product, delta: number) => {
@@ -564,7 +381,7 @@ function ProductPanel() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-stone-800">Product Management</h1>
-            <p className="text-stone-500 text-sm mt-0.5">Manage your products and inventory</p>
+            <p className="text-stone-500 text-sm mt-0.5">Keep what you craft separate from what you promote</p>
           </div>
           <button onClick={load} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition-all" title="Refresh">
             <RefreshCw className="w-4 h-4 text-stone-500" />
@@ -574,10 +391,10 @@ function ProductPanel() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-xl w-fit flex-wrap">
           {([
-            ['products', '📦 My Products'],
-            ['personalization', '✏️ Personalization'],
+            ['crafted', `🔨 Crafted by Us (${crafted.length})`],
+            ['promoted', `🔗 Promoted (${promoted.length})`],
           ] as const).map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => { setTab(t); setAdding(false); setEditing(null); }}
               className="px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={tab === t
                 ? { background: 'linear-gradient(135deg,#c9a84c,#e8c96a)', color: '#2a1800', boxShadow: '0 2px 8px rgba(201,168,76,0.3)' }
@@ -587,9 +404,13 @@ function ProductPanel() {
           ))}
         </div>
 
-        {tab === 'personalization' && <PersonalizationPanel />}
+        <p className="text-xs text-stone-500 mb-4">
+          {tab === 'crafted'
+            ? 'Made by you and sold through your own checkout. These show in your shop.'
+            : <>Sold by other sellers through your affiliate links. These show only on <a href="/picks" className="underline">Our Picks</a>, labeled as not made by you.</>}
+        </p>
 
-        {tab === 'products' && (
+        {(
           <>
             <div className="flex justify-end mb-4">
               <button onClick={() => { setAdding(true); setEditing(null); }}
@@ -601,7 +422,7 @@ function ProductPanel() {
 
             {adding && (
               <div className="mb-6">
-                <ProductForm initial={BLANK} onSave={handleSave} onCancel={() => setAdding(false)} saving={saving} />
+                <ProductForm initial={blankProduct(tab)} onSave={handleSave} onCancel={() => setAdding(false)} saving={saving} />
               </div>
             )}
 
@@ -612,17 +433,17 @@ function ProductPanel() {
               </div>
             )}
 
-            {!loading && products.length === 0 && !adding && (
+            {!loading && shown.length === 0 && !adding && (
               <div className="text-center py-16">
                 <Package className="w-12 h-12 mx-auto mb-3 text-stone-200" />
-                <p className="text-stone-400 font-medium">No products yet.</p>
-                <p className="text-stone-300 text-sm mt-1">Add your first product above.</p>
+                <p className="text-stone-400 font-medium">{tab === 'crafted' ? 'No crafted products yet.' : 'No promoted products yet.'}</p>
+                <p className="text-stone-300 text-sm mt-1">{tab === 'crafted' ? 'Add your first product above.' : 'Add a product with your eBay or Amazon link above.'}</p>
               </div>
             )}
 
-            {!loading && products.length > 0 && (
+            {!loading && shown.length > 0 && (
               <div className="space-y-3">
-                {products.map(product => (
+                {shown.map(product => (
                   <div key={product.id}>
                     {editing?.id === product.id ? (
                       <ProductForm initial={editing} onSave={handleSave} onCancel={() => setEditing(null)} saving={saving} />
@@ -650,6 +471,13 @@ function ProductPanel() {
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-400">Hidden</span>
                               )}
                             </div>
+                            {isPromoted(product) ? (
+                              <a href={product.affiliate_url || '#'} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-amber-700 hover:underline mt-1 max-w-full">
+                                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{product.affiliate_url}</span>
+                              </a>
+                            ) : (
                             <div className="flex items-center gap-3 mt-1">
                               {/* Show price range if variants have per-variant prices */}
                               {Array.isArray(product.variants) && product.variants.length > 0 ? (() => {
@@ -682,6 +510,7 @@ function ProductPanel() {
                                 <span className="text-xs text-stone-400 ml-1">in stock</span>
                               </div>
                             </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <button onClick={() => handleToggleActive(product)}

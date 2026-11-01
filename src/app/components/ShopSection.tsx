@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router';
 import { ShoppingBag, RefreshCw, Tag, AlertTriangle, X } from 'lucide-react';
 
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
@@ -20,30 +21,10 @@ interface Product {
   quantity_remaining: number;
   active: boolean;
   variants?: Variant[];
-  source?: 'supabase' | 'shopify';
 }
 
 const CATS = ['All', 'Rings', 'Pendants', 'Earrings', 'Other'];
 const CAT_MAP: Record<string, string> = { Rings: 'ring', Pendants: 'pendant', Earrings: 'earring', Other: 'other' };
-
-const PRODUCT_CONFIG_KEY = 'forged_product_config';
-
-interface PersonalizationConfig {
-  enabled: boolean;
-  label: string;
-  shopify_url?: string;
-}
-
-function getPersonalizationConfig(productId: string): PersonalizationConfig | null {
-  try {
-    const raw = localStorage.getItem(PRODUCT_CONFIG_KEY);
-    if (!raw) return null;
-    const cfg = JSON.parse(raw);
-    return cfg[productId] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function shortVariantName(variantName: string, productName: string): string {
   const cleaned = variantName.replace(productName, '').replace(/^[\s\-–—·|,]+/, '').trim();
@@ -86,9 +67,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [buying, setBuying] = useState(false);
-  const [personText, setPersonText] = useState('');
-
-  const personConfig = getPersonalizationConfig(product.id);
 
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const groups = hasVariants ? buildGroups(product.variants!, product.name) : new Map<string, VariantGroup>();
@@ -111,8 +89,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const currentPrice = selectedVariant?.price_cents ?? product.price_cents;
   const soldOut = product.quantity_remaining === 0;
   const maxQty = Math.max(1, product.quantity_remaining);
-  const hasDirectUrl = !!personConfig?.shopify_url;
-  const canBuy = !soldOut && (!hasVariants || !!selectedVid || hasDirectUrl);
+  const canBuy = !soldOut && (!hasVariants || !!selectedVid);
 
   const allPrices = hasVariants
     ? product.variants!.map(v => v.price_cents || product.price_cents)
@@ -124,26 +101,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
   const handleBuy = async () => {
     if (!canBuy || buying) return;
     setBuying(true);
-
-    if (product.source === 'shopify') {
-      if (personConfig?.shopify_url) {
-        window.location.href = personConfig.shopify_url;
-        return;
-      }
-      const variantId = selectedVid || product.variants?.[0]?.vid || '';
-      if (!variantId) {
-        alert('Please select a variant to continue.');
-        setBuying(false);
-        return;
-      }
-      const baseUrl = `https://shop.forged-initials.com/cart/${variantId}:${quantity}`;
-      const personLabel = personConfig?.label || 'Personalization';
-      const url = personText.trim()
-        ? `${baseUrl}?note=${encodeURIComponent(`${personLabel}: ${personText.trim()}`)}`
-        : baseUrl;
-      window.location.href = url;
-      return;
-    }
 
     try {
       const res = await fetch('/.netlify/functions/create-checkout', {
@@ -282,7 +239,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                       );
                     })}
                   </div>
-                  {!selectedVid && !soldOut && !hasDirectUrl && (
+                  {!selectedVid && !soldOut && (
                     <p className="text-[11px] text-amber-600 mt-2 font-medium">↑ Select your size to continue</p>
                   )}
                 </div>
@@ -309,23 +266,6 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
               {product.quantity_remaining <= 10 && (
                 <span className="text-[10px] text-stone-400">{product.quantity_remaining} available</span>
               )}
-            </div>
-          )}
-
-          {personConfig?.enabled && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1.5">
-                {personConfig.label || 'Personalization'}
-              </p>
-              <input
-                type="text"
-                value={personText}
-                onChange={e => setPersonText(e.target.value)}
-                maxLength={40}
-                placeholder="e.g. AB, Mom, Forever…"
-                className="w-full px-3 py-2.5 text-sm border border-stone-200 rounded-xl bg-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all"
-              />
-              <p className="text-[10px] text-stone-400 mt-1">{personText.length}/40 · Added to your order note</p>
             </div>
           )}
 
@@ -358,13 +298,11 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
                 boxShadow: '0 4px 18px rgba(201,168,76,0.38)',
               }}
             >
-              {buying ? 'Loading…' : soldOut ? 'Sold Out' : hasDirectUrl ? 'Shop on Forged Initials →' : hasVariants && !selectedVid ? 'Select a Size to Continue' : quantity > 1 ? `Buy ${quantity} → $${((currentPrice * quantity) / 100).toFixed(2)}` : 'Buy Now →'}
+              {buying ? 'Loading…' : soldOut ? 'Sold Out' : hasVariants && !selectedVid ? 'Select a Size to Continue' : quantity > 1 ? `Buy ${quantity} → $${((currentPrice * quantity) / 100).toFixed(2)}` : 'Buy Now →'}
             </button>
 
             <p className="text-[10px] text-center text-stone-400 leading-relaxed">
-              {product.source === 'shopify'
-                ? '18k gold-plated stainless steel · Delivery in 7–15 days'
-                : '18k gold-plated stainless steel · Ships 5–7 business days · Houston, TX'}
+              Handcrafted in Houston, TX · Ships anywhere in the U.S.
             </p>
           </div>
         </div>
@@ -483,33 +421,12 @@ export function ShopSection() {
     setLoading(true);
     setError('');
     try {
-      const [supaResult, shopifyResult] = await Promise.allSettled([
-        fetch(
-          `${SUPABASE_URL}/rest/v1/products?active=eq.true&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
-          { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
-        ).then(r => r.json()),
-        fetch('/.netlify/functions/shopify-products').then(r => r.json()),
-      ]);
-
-      const supaProducts: Product[] = supaResult.status === 'fulfilled' && Array.isArray(supaResult.value)
-        ? supaResult.value
-        : [];
-
-      const shopifyRaw = shopifyResult.status === 'fulfilled' ? (shopifyResult.value.products || []) : [];
-      const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
-        id: `shopify_${p.shopify_id}`,
-        name: p.name,
-        description: p.description,
-        price_cents: p.price_cents,
-        image_url: p.image_url,
-        category: p.category || 'other',
-        quantity_remaining: p.variants?.reduce((sum: number, v: any) => sum + (v.inventory_quantity || 0), 0) || 999,
-        active: true,
-        source: 'shopify' as const,
-        variants: p.variants,
-      }));
-
-      setProducts([...supaProducts, ...shopifyProducts]);
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/products?active=eq.true&product_type=eq.crafted&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
+        { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+      );
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : []);
     } catch {
       setError('Could not load products. Please refresh.');
     } finally {
@@ -538,14 +455,17 @@ export function ShopSection() {
 
           <div className="text-center mb-10 md:mb-14">
             <p className="text-[10px] tracking-[0.35em] uppercase font-bold mb-3" style={{ color: '#c9a84c' }}>
-              ✦ Limited Supply ✦
+              ✦ Made by Us ✦
             </p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-stone-800 mb-4 tracking-tight">
               Shop Our Collection
             </h2>
             <p className="text-stone-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-              Waterproof. Tarnish-free. Hypoallergenic. Premium stainless steel jewelry built to last — stock is limited.
+              Every piece here is handcrafted by us in Houston, Texas.
             </p>
+            <Link to="/picks" className="inline-block mt-3 text-sm font-semibold text-amber-700 hover:underline">
+              Browse our picks from other sellers →
+            </Link>
           </div>
 
           {availableCats.length > 1 && (
@@ -608,7 +528,7 @@ export function ShopSection() {
             <div className="mt-10 text-center">
               <p className="text-stone-400 text-xs flex items-center justify-center gap-1.5">
                 <Tag className="w-3 h-3" />
-                18k gold-plated stainless steel · Waterproof · Ships anywhere in the U.S.
+                Handcrafted in Houston, TX · Ships anywhere in the U.S.
               </p>
             </div>
           )}
