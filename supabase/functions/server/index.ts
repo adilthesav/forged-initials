@@ -25,6 +25,17 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders, status: 200 });
   }
+
+  // Owner only: these can send test messages and create real FedEx labels
+  if (/test-(telegram|stripe-payment|fedex-auth|fedex-label|address-validation|tracking|full-integration)|create-shipment/.test(path)) {
+    const expected = Deno.env.get('ADMIN_PASSWORD');
+    if (!expected || req.headers.get('X-Admin-Password') !== expected) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+  }
   
   try {
     // ============= HEALTH CHECK =============
