@@ -10,7 +10,7 @@ import { PaymentFormCheckout } from './PaymentFormCheckout';
 import { CheckCircle2, Loader2, DollarSign, Box, Instagram, Facebook, Twitter, Plus, Trash2, ShoppingCart, Package, Phone } from 'lucide-react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { EDGE_FUNCTION_BASE_URL, SUPABASE_ANON_KEY } from '../lib/api-config';
-import { BOOK_CALL_URL } from '../utils/booking';
+import { BOOK_CALL_URL, bookCallUrl } from '../utils/booking';
 
 
 type PaymentMethod = 'stripe' | null;
@@ -407,9 +407,9 @@ export function CustomOrder() {
           <CardContent className="p-6 md:p-8 text-center">
             <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
             <h2 className="text-2xl font-semibold mb-2">We got your request!</h2>
-            <p className="text-slate-600 mb-2">Your request number is <strong>{requestNumber}</strong>. Nothing has been charged.</p>
+            <p className="text-slate-600 mb-2">Your request number is <strong>{requestNumber}</strong>. Please save it. You'll need it if you contact us. Nothing has been charged.</p>
             <p className="text-slate-600">We'll reach out to confirm your design. Once you're happy with every detail, we'll send you a private link to pay.</p>
-            <a href={BOOK_CALL_URL} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 font-semibold text-blue-700 hover:underline">Want to talk it through with a real person? Book a free 15-minute call</a>
+            <a href={bookCallUrl(requestNumber)} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 font-semibold text-blue-700 hover:underline">Want to talk it through with a real person? Book a free 15-minute call</a>
             {requestEditUrl && (
               <div className="mt-5 pt-5 border-t">
                 <a href={requestEditUrl} className="inline-block font-semibold text-blue-700 hover:underline">Need to change something? Edit your request</a>

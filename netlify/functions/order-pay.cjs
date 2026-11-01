@@ -46,6 +46,7 @@ async function startCheckout(order) {
   form.append('cancel_url', `${siteUrl()}/pay/${latest.payToken}`);
   form.append('metadata[orderRequestId]', latest.id);
   form.append('metadata[orderNumber]', latest.orderNumber);
+  form.append('payment_intent_data[description]', `Forged Initials order ${latest.orderNumber}`);
 
   // Double clicks reuse one session instead of opening two
   const session = await stripe('checkout/sessions', { form, idempotencyKey: `order-${latest.payToken}-${attempts}` });

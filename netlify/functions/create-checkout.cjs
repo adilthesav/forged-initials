@@ -1,3 +1,5 @@
+const { newId } = require('../lib/orders.cjs');
+
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
 const SITE_URL = 'https://forged-initials.com';
 const FLAT_SHIPPING_CENTS = 1000;
@@ -54,6 +56,8 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid variant selected' }) };
     }
 
+    const orderNumber = `FI-${newId().slice(0, 6).toUpperCase()}`;
+
     const params = new URLSearchParams();
     params.append('mode', 'payment');
     params.append('line_items[0][quantity]', String(quantity));
@@ -66,11 +70,13 @@ exports.handler = async (event) => {
       params.append('line_items[0][price_data][product_data][images][0]', cleanImage);
     }
 
-    params.append('success_url', `${SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`);
+    params.append('success_url', `${SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}&order=${orderNumber}`);
     params.append('cancel_url', `${SITE_URL}/shop`);
     params.append('metadata[productId]', productId);
     params.append('metadata[quantity]', String(quantity));
     params.append('metadata[selectedVid]', selectedVid);
+    params.append('metadata[orderNumber]', orderNumber);
+    params.append('payment_intent_data[description]', `Forged Initials order ${orderNumber}`);
     params.append('shipping_address_collection[allowed_countries][0]', 'US');
     params.append('phone_number_collection[enabled]', 'true');
     params.append('shipping_options[0][shipping_rate_data][type]', 'fixed_amount');

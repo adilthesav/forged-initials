@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { AfterPurchaseNotice } from './AfterPurchaseNotice';
+import { BookCallLink } from './BookCallLink';
 
 interface Letter { letter: string; size: string; quantity: number }
 interface Part { size: string; quantity: number }
@@ -152,6 +153,7 @@ export function EditRequestPage() {
                 <Button type="button" variant="outline" disabled={saving} className="w-full mt-4" onClick={requestCancel}>Request to cancel this order</Button>
               ))}
               {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+              <p className="mt-4"><BookCallLink orderNumber={order.orderNumber} /></p>
             </div>
           )}
 
@@ -241,6 +243,7 @@ export function EditRequestPage() {
                 {saved && <p className="text-sm text-green-700 bg-green-50 rounded-lg p-3">{saved}</p>}
               </div>
               <Button type="submit" disabled={saving} className="w-full" size="lg">{saving ? 'Saving…' : 'Save my changes'}</Button>
+              <p className="text-center"><BookCallLink orderNumber={order.orderNumber} /></p>
             </form>
           )}
         </CardContent>
