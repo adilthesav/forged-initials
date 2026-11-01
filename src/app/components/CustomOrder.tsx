@@ -409,7 +409,7 @@ export function CustomOrder() {
             <h2 className="text-2xl font-semibold mb-2">We got your request!</h2>
             <p className="text-slate-600 mb-2">Your request number is <strong>{requestNumber}</strong>. Nothing has been charged.</p>
             <p className="text-slate-600">We'll reach out to confirm your design. Once you're happy with every detail, we'll send you a private link to pay.</p>
-            <a href={BOOK_CALL_URL} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 font-semibold text-blue-700 hover:underline">Want to talk it through? Book a free 15-minute call</a>
+            <a href={BOOK_CALL_URL} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 font-semibold text-blue-700 hover:underline">Want to talk it through with a real person? Book a free 15-minute call</a>
             {requestEditUrl && (
               <div className="mt-5 pt-5 border-t">
                 <a href={requestEditUrl} className="inline-block font-semibold text-blue-700 hover:underline">Need to change something? Edit your request</a>
@@ -580,7 +580,7 @@ export function CustomOrder() {
               Hand-crafted initial jewelry made just for you
             </p>
             <a href={BOOK_CALL_URL} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-sm md:text-base font-semibold text-blue-700 hover:underline">
-              Prefer to talk first? Book a free 15-minute call
+              Prefer to talk to a real person first? Book a free 15-minute call
             </a>
           </div>
 
