@@ -14,6 +14,7 @@ import { CancelPage } from './components/CancelPage';
 import { ShopifyCallback } from './components/ShopifyCallback';
 import { OwnerBlogPanel } from './components/OwnerBlogPanel';
 import { PayOrderPage } from './components/PayOrderPage';
+import { EditRequestPage } from './components/EditRequestPage';
 import { OwnerOrdersPanel } from './components/OwnerOrdersPanel';
 
 export const router = createBrowserRouter([
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: 'admin-shop', Component: OwnerProductPanel },
       { path: 'admin-orders', Component: OwnerOrdersPanel },
       { path: 'pay/:token', Component: PayOrderPage },
+      { path: 'request/:token', Component: EditRequestPage },
       { path: 'admin-blog', Component: OwnerBlogPanel },
     ],
   },

@@ -1,8 +1,8 @@
 // Owner only: review order requests, edit them, and create private payment links.
 const crypto = require('crypto');
 const {
-  LINK_DAYS, STRIPE_MIN_CENTS, json, clean, normalizeItems, priceOrder, payUrl, getOrder, listOrders, saveOrder,
-  newToken, stripe, reconcile,
+  LINK_DAYS, STRIPE_MIN_CENTS, json, clean, normalizeItems, priceOrder, payUrl, editUrl, getOrder, listOrders, saveOrder,
+  newToken, closeCheckout,
 } = require('../lib/orders.cjs');
 
 function isAuthorized(headers, secret) {
@@ -12,15 +12,12 @@ function isAuthorized(headers, secret) {
   return crypto.timingSafeEqual(a, b);
 }
 
-const present = (order) => ({ ...order, price: priceOrder(order), payUrl: payUrl(order) });
+const present = (order) => ({ ...order, price: priceOrder(order), payUrl: payUrl(order), editUrl: editUrl(order) });
 
-// Stops an unpaid checkout so an old link can't be paid after the order changes.
-// If the customer already paid, reconcile marks it paid and it comes back as { paid }.
-async function closeCheckout(order) {
-  const { order: latest, session } = await reconcile(order);
-  if (latest.status === 'paid') return { paid: latest };
-  if (session?.status === 'open') await stripe(`checkout/sessions/${encodeURIComponent(session.id)}/expire`, { method: 'POST' });
-  return { order: latest };
+// Requests made before edit links existed get one the first time the owner opens the list
+async function withEditLink(order) {
+  if (order.editToken || !['requested', 'approved'].includes(order.status)) return order;
+  return saveOrder({ ...order, editToken: newToken() });
 }
 
 exports.handler = async (event) => {
@@ -32,12 +29,17 @@ exports.handler = async (event) => {
   if (!isAuthorized(event.headers || {}, secret)) return json(401, { error: 'Unauthorized' });
 
   try {
-    if (event.httpMethod === 'GET') return json(200, { orders: (await listOrders()).map(present) });
+    if (event.httpMethod === 'GET') return json(200, { orders: (await Promise.all((await listOrders()).map(withEditLink))).map(present) });
     if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
 
     const body = JSON.parse(event.body || '{}');
     const order = await getOrder(body.id);
     if (!order) return json(404, { error: 'Order not found' });
+
+    // The customer can edit at any time, so never overwrite a change the owner hasn't seen
+    if (['update', 'approve'].includes(body.action) && body.expectedUpdatedAt && body.expectedUpdatedAt !== order.updatedAt) {
+      return json(409, { error: 'This request just changed. Check the latest details, then try again.', order: present(order) });
+    }
 
     if (body.action === 'update') {
       if (order.status !== 'requested') return json(409, { error: 'Reopen this order before editing it.' });
@@ -54,6 +56,7 @@ exports.handler = async (event) => {
       const next = {
         ...order,
         status: 'approved',
+        editsUnreviewed: false,
         payToken: newToken(),
         approvedAt: new Date().toISOString(),
         linkExpiresAt: new Date(Date.now() + LINK_DAYS * 86400000).toISOString(),
@@ -61,6 +64,10 @@ exports.handler = async (event) => {
         stripeAttempts: 0,
       };
       return json(200, { order: present(await saveOrder(next)) });
+    }
+
+    if (body.action === 'reviewed') {
+      return json(200, { order: present(await saveOrder({ ...order, editsUnreviewed: false })) });
     }
 
     if (body.action === 'reopen' || body.action === 'cancel') {

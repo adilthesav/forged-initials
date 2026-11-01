@@ -5,13 +5,22 @@ import { Card, CardContent } from './ui/card';
 
 interface Letter { letter: string; size: string; quantity: number }
 interface Part { size: string; quantity: number }
+interface CustomerEdit {
+  at: string;
+  changes: { field: string; before: string; after: string }[];
+  totalBeforeCents: number;
+  totalAfterCents: number;
+  closedPaymentLink: boolean;
+}
 interface Order {
   id: string;
   orderNumber: string;
   status: 'requested' | 'approved' | 'paid' | 'cancelled';
   createdAt: string;
+  updatedAt: string;
   customer: { name: string; email: string; phone: string; addressLine1: string; addressLine2: string; city: string; state: string; postalCode: string };
   notes: string;
+  customerNotes?: string;
   letters: Letter[];
   bails: Part[];
   prongs: Part[];
@@ -21,6 +30,9 @@ interface Order {
   linkExpiresAt?: string | null;
   price: { totalCents: number };
   payUrl: string | null;
+  editUrl: string | null;
+  customerEdits?: CustomerEdit[];
+  editsUnreviewed?: boolean;
 }
 
 const ENDPOINT = '/.netlify/functions/admin-orders';
@@ -105,6 +117,16 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
   const editable = order.status === 'requested';
   const c = order.customer;
 
+  // Show the latest saved version, which may include the customer's own changes
+  useEffect(() => {
+    setLetters(order.letters);
+    setBails(order.bails);
+    setProngs(order.prongs);
+    setAdjustment(String((order.adjustmentCents || 0) / 100));
+    setAdjustmentNote(order.adjustmentNote || '');
+    setOwnerNotes(order.ownerNotes || '');
+  }, [order.updatedAt]);
+
   const act = async (action: string, extra: object = {}) => {
     setBusy(true);
     setMessage('');
@@ -126,14 +148,17 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
     }
   };
 
-  const edits = () => ({ letters, bails, prongs, adjustmentDollars: Number(adjustment) || 0, adjustmentNote, ownerNotes });
+  const edits = () => ({ expectedUpdatedAt: order.updatedAt, letters, bails, prongs, adjustmentDollars: Number(adjustment) || 0, adjustmentNote, ownerNotes });
   const save = async () => { if (await act('update', edits())) setMessage('Saved.'); };
-  const approve = async () => { if (await act('update', edits())) await act('approve'); };
+  const approve = async () => {
+    const saved = await act('update', edits());
+    if (saved) await act('approve', { expectedUpdatedAt: saved.updatedAt });
+  };
   const reopen = () => { if (window.confirm('The current payment link will stop working. Continue?')) act('reopen'); };
   const cancel = () => { if (window.confirm(`Cancel order ${order.orderNumber}?`)) act('cancel'); };
-  const copy = async () => {
-    if (!order.payUrl) return;
-    try { await navigator.clipboard.writeText(order.payUrl); setMessage('Link copied.'); }
+  const copy = async (link: string | null) => {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); setMessage('Link copied.'); }
     catch { setMessage('Could not copy. Select the link and copy it by hand.'); }
   };
 
@@ -155,7 +180,10 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
           <p>{c.email}{c.phone ? ` · ${c.phone}` : ''}</p>
           <p>{[c.addressLine1, c.addressLine2, c.city, c.state, c.postalCode].filter(Boolean).join(', ')}</p>
           {order.notes && <p className="mt-2 p-2 bg-slate-100 rounded">{order.notes}</p>}
+          {order.customerNotes && <p className="mt-2 p-2 bg-slate-100 rounded"><span className="font-medium">Customer's note:</span> {order.customerNotes}</p>}
         </div>
+
+        <CustomerEdits edits={order.customerEdits || []} unreviewed={!!order.editsUnreviewed} busy={busy} onReviewed={() => act('reviewed')} />
 
         <div className="space-y-2">
           <p className="text-sm font-medium">Letters</p>
@@ -197,7 +225,16 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
           <div className="bg-blue-50 rounded-lg p-3 text-sm">
             <p className="font-medium mb-1">Payment link{order.linkExpiresAt ? `, expires ${new Date(order.linkExpiresAt).toLocaleDateString()}` : ''}</p>
             <p className="break-all mb-2">{order.payUrl}</p>
-            <Button type="button" size="sm" variant="outline" onClick={copy}><Copy className="w-4 h-4 mr-1" /> Copy link</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => copy(order.payUrl)}><Copy className="w-4 h-4 mr-1" /> Copy link</Button>
+          </div>
+        )}
+
+        {(editable || order.status === 'approved') && order.editUrl && (
+          <div className="bg-slate-100 rounded-lg p-3 text-sm">
+            <p className="font-medium mb-1">Customer edit link</p>
+            <p className="text-slate-600 mb-2">Send this so the customer can change their own request. Anyone with the link can see and edit it.</p>
+            <p className="break-all mb-2">{order.editUrl}</p>
+            <Button type="button" size="sm" variant="outline" onClick={() => copy(order.editUrl)}><Copy className="w-4 h-4 mr-1" /> Copy edit link</Button>
           </div>
         )}
 
@@ -210,6 +247,33 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
         {message && <p className="text-sm text-slate-600">{message}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function CustomerEdits({ edits, unreviewed, busy, onReviewed }: { edits: CustomerEdit[]; unreviewed: boolean; busy: boolean; onReviewed: () => void }) {
+  if (!edits.length) return null;
+  return (
+    <div className={`rounded-lg p-3 text-sm space-y-3 border ${unreviewed ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">{unreviewed ? 'The customer changed this request' : `Customer changes (${edits.length})`}</p>
+        {unreviewed && <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onReviewed}>Mark as reviewed</Button>}
+      </div>
+      {[...edits].reverse().map((edit) => (
+        <div key={edit.at} className="space-y-1">
+          <p className="text-xs text-slate-500">
+            {new Date(edit.at).toLocaleString()} · Total {money(edit.totalBeforeCents)} → {money(edit.totalAfterCents)}
+            {edit.closedPaymentLink ? ' · Payment link turned off' : ''}
+          </p>
+          {edit.changes.map((change) => (
+            <p key={change.field}>
+              <span className="font-medium">{change.field}:</span>{' '}
+              <span className="text-slate-500 line-through">{change.before || 'none'}</span>{' → '}
+              <span>{change.after || 'none'}</span>
+            </p>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
