@@ -1,7 +1,7 @@
 // Receives Vapi's end-of-call report and sends the owner a Telegram summary of
 // what the caller wants, with the full transcript attached as a text file.
 const crypto = require('crypto');
-const { saveCallRequest } = require('../lib/orders.cjs');
+const { saveCallRequest, parseCallLines } = require('../lib/orders.cjs');
 
 const OUTPUT_NAME = 'order_request';
 const TELEGRAM_LIMIT = 4000; // Telegram rejects messages over 4096 characters
@@ -122,9 +122,9 @@ function formatSummary(message, saved) {
     if (order.caller_name) lines.push(`👤 <b>Name:</b> ${esc(order.caller_name)}`);
     if (order.callback_number) lines.push(`📱 <b>Call back:</b> ${esc(order.callback_number)}${order.contact_preference ? ` (${esc(order.contact_preference)})` : ''}`);
     if (order.reason) lines.push(`🎯 <b>Reason:</b> ${esc(order.reason)}`);
-    const letters = formatItems(order.letters);
+    const letters = formatItems(parseCallLines(order.letters, ['letter', 'size', 'quantity']));
     if (letters) lines.push(`💎 <b>Letters:</b>\n${letters}`);
-    const parts = formatItems(order.parts);
+    const parts = formatItems(parseCallLines(order.parts, ['item', 'size', 'quantity']));
     if (parts) lines.push(`🔩 <b>Parts:</b>\n${parts}`);
     if (order.occasion) lines.push(`🎁 <b>For:</b> ${esc(order.occasion)}`);
     if (order.deadline) lines.push(`🗓 <b>Deadline:</b> ${esc(order.deadline)}`);
