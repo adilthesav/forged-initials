@@ -2,13 +2,13 @@ import { Instagram, Facebook, Twitter, Send, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 
 interface FooterProps {
-  onNavigate: (page: 'home' | 'contact' | 'test' | 'track' | 'blog') => void;
+  onNavigate: (page: 'home' | 'contact' | 'test' | 'track' | 'blog' | 'picks') => void;
 }
 
 export function Footer({ onNavigate }: FooterProps) {
   const [clickCount, setClickCount] = useState(0);
 
-  const nav = (page: 'home' | 'contact' | 'track') => {
+  const nav = (page: 'home' | 'contact' | 'track' | 'picks') => {
     onNavigate(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -25,6 +25,7 @@ export function Footer({ onNavigate }: FooterProps) {
     { label: 'Custom Orders',  href: '#custom-orders' },
     { label: 'Jewelry Parts',  href: '#jewelry-parts' },
     { label: 'About Us',       href: '#about' },
+    { label: 'Our Picks',      action: () => nav('picks') },
     { label: 'Track Order',    action: () => nav('track') },
     { label: 'Contact Us',     action: () => nav('contact') },
     { label: 'Journal',        action: () => onNavigate('blog') },

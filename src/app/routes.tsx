@@ -7,6 +7,7 @@ import { TrackOrder } from './components/TrackOrder';
 import { BlogPage } from './components/BlogPage';
 import { BlogPostPage } from './components/BlogPostPage';
 import { ShopSection } from './components/ShopSection';
+import { PromotedPicks } from './components/PromotedPicks';
 import { OwnerProductPanel } from './components/OwnerProductPanel';
 import { SuccessPage } from './components/SuccessPage';
 import { CancelPage } from './components/CancelPage';
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
       { path: 'blog', Component: BlogPage },
       { path: 'blog/:slug', Component: BlogPostPage },
       { path: 'shop', Component: () => <div className="pt-4"><ShopSection /></div> },
+      { path: 'picks', Component: PromotedPicks },
       { path: 'admin-shop', Component: OwnerProductPanel },
       { path: 'admin-orders', Component: OwnerOrdersPanel },
       { path: 'pay/:token', Component: PayOrderPage },

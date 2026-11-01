@@ -9,13 +9,14 @@ import { SEOHead, SEOPresets } from './components/SEOHead';
 import { SchemaMarkup, SchemaTypes } from './components/SchemaMarkup';
 import { usePerformanceOptimization } from './hooks/usePerformanceOptimization';
 
-type Page = 'home' | 'contact' | 'faq' | 'track' | 'blog';
+type Page = 'home' | 'contact' | 'faq' | 'track' | 'blog' | 'picks';
 
 function pathToPage(pathname: string): Page {
   if (pathname === '/contact') return 'contact';
   if (pathname === '/faq') return 'faq';
   if (pathname === '/track') return 'track';
   if (pathname.startsWith('/blog')) return 'blog';
+  if (pathname === '/picks') return 'picks';
   return 'home';
 }
 
@@ -25,6 +26,7 @@ const PAGE_TO_PATH: Record<Page, string> = {
   faq: '/faq',
   track: '/track',
   blog: '/blog',
+  picks: '/picks',
 };
 
 export function Root() {
@@ -67,6 +69,14 @@ export function Root() {
           />
           <SchemaMarkup type={SchemaTypes.FAQ} />
         </>
+      )}
+      {currentPage === 'picks' && (
+        <SEOHead
+          title="Our Picks - Forged Initials"
+          description="Jewelry we like from other sellers. These pieces aren't made by Forged Initials."
+          keywords="jewelry picks, affiliate jewelry recommendations"
+          page="picks"
+        />
       )}
       {currentPage === 'track' && (
         <SEOHead
