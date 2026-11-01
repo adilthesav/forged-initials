@@ -245,7 +245,7 @@ export function Contact() {
                     </div>
                     <div>
                       <h4 className="mb-1 text-base md:text-lg">Phone</h4>
-                      <a href="tel:+13465760945" className="text-sm md:text-base text-primary hover:underline">(346) 576-0945</a>
+                      <a href="tel:+14134323002" className="text-sm md:text-base text-primary hover:underline">(413) 432-3002</a>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 md:gap-4">
@@ -295,7 +295,7 @@ export function Contact() {
                           <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="white">
                             <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
                           </svg>
-                          Telegram — @adilali08
+                          Message us on Telegram
                         </a>
                       </div>
                     </div>
