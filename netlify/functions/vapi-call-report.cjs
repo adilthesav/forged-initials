@@ -14,7 +14,10 @@ exports.handler = async (event) => {
     console.error('⚠️ VAPI_WEBHOOK_SECRET is not set');
     return reply(500, 'Not configured');
   }
-  if (!isAuthorized(event.headers || {}, SECRET)) return reply(401, 'Unauthorized');
+  if (!isAuthorized(event.headers || {}, SECRET)) {
+    console.error('⚠️ Rejected a call report with the wrong secret');
+    return reply(401, 'Unauthorized');
+  }
 
   let message;
   try {
@@ -25,6 +28,7 @@ exports.handler = async (event) => {
 
   // Vapi also sends other event types here; only the final report matters
   if (message?.type !== 'end-of-call-report') return reply(200, 'Ignored');
+  console.log(`📞 Call report received: ${message.endedReason || 'unknown ending'}`);
 
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -78,7 +82,8 @@ function callId(message) {
 function orderRequest(message) {
   const outputs = message.artifact?.structuredOutputs || {};
   const match = Object.values(outputs).find((o) => o?.name === OUTPUT_NAME);
-  return match?.result || null;
+  // A field set up as true/false instead of an object has no details to show
+  return match?.result && typeof match.result === 'object' ? match.result : null;
 }
 
 function formatItems(items) {
