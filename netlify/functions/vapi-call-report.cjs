@@ -1,6 +1,7 @@
 // Receives Vapi's end-of-call report and sends the owner a Telegram summary of
 // what the caller wants, with the full transcript attached as a text file.
 const crypto = require('crypto');
+const { saveCallRequest } = require('../lib/orders.cjs');
 
 const OUTPUT_NAME = 'order_request';
 const TELEGRAM_LIMIT = 4000; // Telegram rejects messages over 4096 characters
@@ -37,9 +38,17 @@ exports.handler = async (event) => {
     return reply(500, 'Not configured');
   }
 
+  // An order problem shouldn't lose the summary, so a failed save is only noted
+  let saved = null;
+  try {
+    saved = await saveCallRequest(callId(message), callerNumber(message), orderRequest(message));
+  } catch (err) {
+    console.error('⚠️ Could not save the phone request:', err.message);
+  }
+
   try {
     await sendTelegram(BOT_TOKEN, 'sendMessage', {
-      json: { chat_id: CHAT_ID, text: formatSummary(message), parse_mode: 'HTML', disable_web_page_preview: true },
+      json: { chat_id: CHAT_ID, text: formatSummary(message, saved), parse_mode: 'HTML', disable_web_page_preview: true },
     });
   } catch (err) {
     console.error('⚠️ Telegram error:', err.message);
@@ -78,6 +87,10 @@ function callId(message) {
   return message.call?.id;
 }
 
+function callerNumber(message) {
+  return message.call?.customer?.number || message.customer?.number;
+}
+
 // Structured outputs arrive keyed by id, each as { name, result }
 function orderRequest(message) {
   const outputs = message.artifact?.structuredOutputs || {};
@@ -93,15 +106,16 @@ function formatItems(items) {
     .join('\n');
 }
 
-function formatSummary(message) {
+function formatSummary(message, saved) {
   const order = orderRequest(message);
-  const caller = message.call?.customer?.number || message.customer?.number;
+  const caller = callerNumber(message);
   const seconds = Number(message.durationSeconds);
   const summary = message.analysis?.summary || message.summary;
 
   const lines = ['📞 <b>NEW PHONE CALL</b>'];
   if (caller) lines.push(`☎️ <b>Caller ID:</b> ${esc(caller)}`);
   if (seconds > 0) lines.push(`⏱ <b>Length:</b> ${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`);
+  if (saved) lines.push(`🧾 <b>Request:</b> ${esc(saved.orderNumber)} (review at forged-initials.com/admin-orders)`);
   lines.push('');
 
   if (order) {

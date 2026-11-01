@@ -156,13 +156,20 @@ async function markPaid(order, session) {
     paidAt: new Date().toISOString(),
     paidCents: session.amount_total,
     paymentIntent: session.payment_intent || null,
+    stripeShipping: session.shipping_details || null,
   });
   await telegram(
     `💰 <b>ORDER PAID: ${esc(order.orderNumber)}</b>\n\n` +
-    `👤 ${esc(order.customer.name)}\n💵 ${dollars(session.amount_total || 0)}\n\n` +
+    `👤 ${esc(order.customer.name)}\n💵 ${dollars(session.amount_total || 0)}\n` +
+    (session.shipping_details?.address ? `📍 Ship to: ${esc(formatStripeAddress(session.shipping_details))}\n` : '') +
+    `\n` +
     `Next: make the piece and create the shipping label by hand.`
   );
   return paid;
+}
+
+function formatStripeAddress({ name, address: a }) {
+  return [name, a.line1, a.line2, a.city, a.state, a.postal_code].filter(Boolean).join(', ');
 }
 
 // Checks the order's Stripe session, so a payment is noticed even if a webhook is missed.
@@ -181,7 +188,63 @@ function newId() {
   return crypto.randomBytes(6).toString('hex');
 }
 
+// Turns what the phone AI heard into order lines, skipping anything unclear for the owner to confirm.
+function itemsFromCall(request) {
+  const letters = [];
+  const bails = [];
+  const prongs = [];
+  for (const l of Array.isArray(request?.letters) ? request.letters : []) {
+    const size = String(l?.size ?? 'medium').toLowerCase().trim().replace(/\s+/g, '-');
+    const line = normalizeItems({ letters: [{ letter: l?.letter, size, quantity: l?.quantity ?? 1 }] });
+    if (line) letters.push(...line.letters);
+  }
+  for (const p of Array.isArray(request?.parts) ? request.parts : []) {
+    const item = String(p?.item ?? '').toLowerCase();
+    const quantity = p?.quantity ?? 1;
+    if (item.includes('prong')) {
+      const size = /half|½|1\/2/.test(item) ? 'half-carat' : /one|1/.test(item) ? '1-carat' : null;
+      const line = size && normalizeItems({ prongs: [{ size, quantity }] });
+      if (line) prongs.push(...line.prongs);
+    } else if (item.includes('bail')) {
+      const word = String(p?.size ?? '').toLowerCase().trim();
+      const size = { 'extra small': 'xs', xs: 'xs', small: 's', s: 's', medium: 'm', m: 'm', large: 'l', l: 'l' }[word];
+      const line = size && normalizeItems({ bails: [{ size, quantity }] });
+      if (line) bails.push(...line.bails);
+    }
+  }
+  return { letters, bails, prongs };
+}
+
+// Saves a phone order as a request. A retried report for the same call gets the same request back.
+async function saveCallRequest(callId, caller, request) {
+  const items = itemsFromCall(request);
+  if (!items.letters.length && !items.bails.length && !items.prongs.length) return null;
+  const id = crypto.createHash('sha256').update(String(callId || crypto.randomUUID())).digest('hex').slice(0, 12);
+  const existing = await getOrder(id);
+  if (existing) return existing;
+  return saveOrder({
+    id,
+    orderNumber: `FI-${id.slice(0, 6).toUpperCase()}`,
+    status: 'requested',
+    source: 'phone',
+    createdAt: new Date().toISOString(),
+    customer: {
+      name: clean(request.caller_name, 100) || 'Phone caller',
+      email: '',
+      phone: clean(request.callback_number || caller, 30),
+      addressLine1: '',
+      addressLine2: '',
+      city: clean(request.location, 80),
+      state: '',
+      postalCode: '',
+    },
+    notes: clean([request.reason, request.occasion, request.deadline && `Deadline: ${request.deadline}`, request.follow_up].filter(Boolean).join(' · '), 1000),
+    ...items,
+    adjustmentCents: 0,
+  });
+}
+
 module.exports = {
   LINK_DAYS, STRIPE_MIN_CENTS, json, clean, normalizeItems, priceOrder, payUrl, siteUrl, getOrder, getOrderByToken,
-  listOrders, saveOrder, telegram, esc, dollars, stripe, markPaid, reconcile, newToken, newId,
+  listOrders, saveOrder, telegram, esc, dollars, stripe, markPaid, reconcile, newToken, newId, saveCallRequest,
 };

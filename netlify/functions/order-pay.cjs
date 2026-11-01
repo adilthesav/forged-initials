@@ -9,7 +9,7 @@ function publicView(order) {
     status: order.status,
     expired: isExpired(order),
     name: c.name,
-    shipTo: [c.addressLine1, c.addressLine2, `${c.city}, ${c.state} ${c.postalCode}`].filter(Boolean),
+    shipTo: c.addressLine1 ? [c.addressLine1, c.addressLine2, `${c.city}, ${c.state} ${c.postalCode}`].filter(Boolean) : ['You\'ll enter your address at checkout'],
     lines: price.lines,
     subtotalCents: price.subtotalCents,
     shippingCents: price.shippingCents,
@@ -38,7 +38,9 @@ async function startCheckout(order) {
   form.append('line_items[0][price_data][unit_amount]', String(price.totalCents));
   form.append('line_items[0][price_data][product_data][name]', `Forged Initials custom order ${latest.orderNumber}`);
   form.append('line_items[0][price_data][product_data][description]', price.lines.map((l) => `${l.label} x${l.quantity}`).join(', ').slice(0, 450) + ' + shipping');
-  form.append('customer_email', latest.customer.email);
+  if (latest.customer.email) form.append('customer_email', latest.customer.email);
+  // Phone orders have no address on file, so Stripe collects it
+  if (!latest.customer.addressLine1) form.append('shipping_address_collection[allowed_countries][]', 'US');
   form.append('success_url', `${siteUrl()}/pay/${latest.payToken}`);
   form.append('cancel_url', `${siteUrl()}/pay/${latest.payToken}`);
   form.append('metadata[orderRequestId]', latest.id);
