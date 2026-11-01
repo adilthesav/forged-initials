@@ -3,8 +3,9 @@ import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
-import { Mail, Phone, Clock, Instagram, Facebook, Twitter, Send, Paperclip, X, ImageIcon, FileText } from 'lucide-react';
+import { Mail, Phone, Clock, Instagram, Facebook, Twitter, Send, Paperclip, X, ImageIcon, FileText, Calendar } from 'lucide-react';
 import { useState, useRef } from 'react';
+import { BOOK_CALL_URL } from '../utils/booking';
 
 // Compress an image File to a JPEG under maxBytes using Canvas
 async function compressImage(file: File, maxBytes = 700_000): Promise<{ data: string; type: string }> {
@@ -235,6 +236,20 @@ export function Contact() {
 
           {/* Contact Information */}
           <div className="space-y-4 md:space-y-6">
+            <Card className="border-border">
+              <CardContent className="p-5 md:p-8">
+                <h3 className="mb-2 text-xl md:text-2xl">Talk with us one on one</h3>
+                <p className="text-sm md:text-base text-muted-foreground mb-4">
+                  Book a free 15-minute phone call to design a custom piece, change a request before paying, ask about bulk orders, or get help with an order. A call doesn't change or cancel an order by itself.
+                </p>
+                <Button asChild className="w-full">
+                  <a href={BOOK_CALL_URL} target="_blank" rel="noopener noreferrer">
+                    <Calendar className="w-4 h-4 mr-2" /> Book a free call
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className="border-border">
               <CardContent className="p-5 md:p-8">
                 <h3 className="mb-4 md:mb-6 text-xl md:text-2xl">Contact Information</h3>
