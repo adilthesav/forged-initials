@@ -23,6 +23,23 @@ interface Product {
   variants?: Variant[];
 }
 
+type ShopType = 'crafted' | 'selected';
+
+const SHOP_COPY: Record<ShopType, { eyebrow: string; title: string; intro: string; note: string }> = {
+  crafted: {
+    eyebrow: '✦ Made by Us ✦',
+    title: 'Shop Our Collection',
+    intro: 'Every piece here is handcrafted by us in Houston, Texas.',
+    note: 'Handcrafted in Houston, TX · $10 flat shipping in the U.S.',
+  },
+  selected: {
+    eyebrow: '✦ Selected by Us ✦',
+    title: 'Selected by Us',
+    intro: "Pieces we choose from other brands and ship ourselves. These aren't made by Forged Initials.",
+    note: 'Not made by Forged Initials · Shipped by us · $10 flat shipping in the U.S.',
+  },
+};
+
 const CATS = ['All', 'Rings', 'Pendants', 'Earrings', 'Other'];
 const CAT_MAP: Record<string, string> = { Rings: 'ring', Pendants: 'pendant', Earrings: 'earring', Other: 'other' };
 
@@ -62,7 +79,7 @@ function buildGroups(variants: Variant[], productName: string): Map<string, Vari
 }
 
 // ── Product Modal ─────────────────────────────────────────────────────────────
-function ProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
+function ProductModal({ product, note, onClose }: { product: Product; note: string; onClose: () => void }) {
   const [selectedVid, setSelectedVid] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -302,7 +319,7 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             </button>
 
             <p className="text-[10px] text-center text-stone-400 leading-relaxed">
-              Handcrafted in Houston, TX · Ships anywhere in the U.S.
+              {note}
             </p>
           </div>
         </div>
@@ -410,7 +427,8 @@ function SkeletonCard() {
 }
 
 // ── Shop Section ──────────────────────────────────────────────────────────────
-export function ShopSection() {
+export function ShopSection({ type = 'crafted' }: { type?: ShopType }) {
+  const copy = SHOP_COPY[type];
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
@@ -422,7 +440,7 @@ export function ShopSection() {
     setError('');
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?active=eq.true&product_type=eq.crafted&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
+        `${SUPABASE_URL}/rest/v1/products?active=eq.true&product_type=eq.${type}&order=created_at.desc&select=id,name,description,price_cents,image_url,category,quantity_remaining,active,variants`,
         { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
       );
       const data = await res.json();
@@ -432,12 +450,21 @@ export function ShopSection() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [type]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  // Hide the whole section until there are products to show
-  if (products.length === 0) return null;
+  // The home page hides the section until there are products; the Selected page says so instead
+  if (products.length === 0) {
+    if (type === 'crafted' || loading) return null;
+    return (
+      <section className="py-24 text-center min-h-[50vh]">
+        <h1 className="text-3xl font-bold text-stone-800 mb-3">{copy.title}</h1>
+        <p className="text-stone-500 max-w-md mx-auto px-4">{copy.intro}</p>
+        <p className="text-stone-400 mt-6">{error || 'New pieces are coming soon.'}</p>
+      </section>
+    );
+  }
 
   const filtered = activeCategory === 'All'
     ? products
@@ -455,16 +482,16 @@ export function ShopSection() {
 
           <div className="text-center mb-10 md:mb-14">
             <p className="text-[10px] tracking-[0.35em] uppercase font-bold mb-3" style={{ color: '#c9a84c' }}>
-              ✦ Made by Us ✦
+              {copy.eyebrow}
             </p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-stone-800 mb-4 tracking-tight">
-              Shop Our Collection
+              {copy.title}
             </h2>
             <p className="text-stone-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-              Every piece here is handcrafted by us in Houston, Texas.
+              {copy.intro}
             </p>
-            <Link to="/picks" className="inline-block mt-3 text-sm font-semibold text-amber-700 hover:underline">
-              Browse our picks from other sellers →
+            <Link to={type === 'crafted' ? '/selected' : '/'} className="inline-block mt-3 text-sm font-semibold text-amber-700 hover:underline">
+              {type === 'crafted' ? 'See pieces selected by us →' : 'See what we handcraft →'}
             </Link>
           </div>
 
@@ -528,7 +555,7 @@ export function ShopSection() {
             <div className="mt-10 text-center">
               <p className="text-stone-400 text-xs flex items-center justify-center gap-1.5">
                 <Tag className="w-3 h-3" />
-                Handcrafted in Houston, TX · Ships anywhere in the U.S.
+                {copy.note}
               </p>
             </div>
           )}
@@ -537,7 +564,7 @@ export function ShopSection() {
       </section>
 
       {openProduct && (
-        <ProductModal product={openProduct} onClose={() => setOpenProduct(null)} />
+        <ProductModal product={openProduct} note={copy.note} onClose={() => setOpenProduct(null)} />
       )}
     </>
   );

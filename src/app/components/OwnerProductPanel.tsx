@@ -8,7 +8,7 @@ interface Variant {
   price_cents?: number;
 }
 
-type ProductType = 'crafted' | 'promoted';
+type ProductType = 'crafted' | 'selected' | 'promoted';
 
 interface Product {
   id?: string;
@@ -33,6 +33,12 @@ const blankProduct = (product_type: ProductType): Product => ({
 });
 
 const isPromoted = (p: Product) => p.product_type === 'promoted';
+
+const TYPE_LABEL: Record<ProductType, string> = {
+  crafted: 'Crafted Product',
+  selected: 'Selected Product',
+  promoted: 'Promoted Product',
+};
 
 async function adminFetch(method: string, body?: object) {
   const res = await fetch('/.netlify/functions/admin-products', {
@@ -180,13 +186,13 @@ function ProductForm({ initial, onSave, onCancel, saving }: {
 
   return (
     <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 space-y-4">
-      <h3 className="font-bold text-stone-800 text-sm">{form.id ? 'Edit' : 'Add'} {promoted ? 'Promoted Product' : 'Crafted Product'}</h3>
+      <h3 className="font-bold text-stone-800 text-sm">{form.id ? 'Edit' : 'Add'} {TYPE_LABEL[form.product_type || 'crafted']}</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-stone-500 mb-1 block">Product Name *</label>
           <input value={form.name} onChange={e => set('name', e.target.value)}
-            placeholder={promoted ? 'e.g. Vintage Silver Locket' : 'e.g. Silver Letter A Pendant'}
+            placeholder={promoted ? 'e.g. Vintage Silver Locket' : form.product_type === 'selected' ? 'e.g. Gold Hoop Earrings' : 'e.g. Silver Letter A Pendant'}
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-amber-400" />
         </div>
         <div>
@@ -337,9 +343,10 @@ function ProductPanel() {
 
   useEffect(() => { load(); }, [load]);
 
-  const crafted = products.filter(p => !isPromoted(p));
+  const crafted = products.filter(p => (p.product_type || 'crafted') === 'crafted');
+  const selected = products.filter(p => p.product_type === 'selected');
   const promoted = products.filter(isPromoted);
-  const shown = tab === 'crafted' ? crafted : promoted;
+  const shown = { crafted, selected, promoted }[tab];
 
   const handleSave = async (product: Product) => {
     setSaving(true);
@@ -392,6 +399,7 @@ function ProductPanel() {
         <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-xl w-fit flex-wrap">
           {([
             ['crafted', `🔨 Crafted by Us (${crafted.length})`],
+            ['selected', `🛍 Selected by Us (${selected.length})`],
             ['promoted', `🔗 Promoted (${promoted.length})`],
           ] as const).map(([t, label]) => (
             <button key={t} onClick={() => { setTab(t); setAdding(false); setEditing(null); }}
@@ -406,7 +414,9 @@ function ProductPanel() {
 
         <p className="text-xs text-stone-500 mb-4">
           {tab === 'crafted'
-            ? 'Made by you and sold through your own checkout. These show in your shop.'
+            ? 'Made by you and sold through your own checkout. These show in your shop as handcrafted.'
+            : tab === 'selected'
+            ? <>Bought from brands, such as on Faire, and shipped by you. These show only on <a href="/selected" className="underline">Selected by Us</a>, labeled as not made by you.</>
             : <>Sold by other sellers through your affiliate links. These show only on <a href="/picks" className="underline">Our Picks</a>, labeled as not made by you.</>}
         </p>
 
@@ -436,8 +446,8 @@ function ProductPanel() {
             {!loading && shown.length === 0 && !adding && (
               <div className="text-center py-16">
                 <Package className="w-12 h-12 mx-auto mb-3 text-stone-200" />
-                <p className="text-stone-400 font-medium">{tab === 'crafted' ? 'No crafted products yet.' : 'No promoted products yet.'}</p>
-                <p className="text-stone-300 text-sm mt-1">{tab === 'crafted' ? 'Add your first product above.' : 'Add a product with your eBay or Amazon link above.'}</p>
+                <p className="text-stone-400 font-medium">{`No ${TYPE_LABEL[tab].toLowerCase()}s yet.`}</p>
+                <p className="text-stone-300 text-sm mt-1">{tab === 'promoted' ? 'Add a product with your eBay or Amazon link above.' : 'Add your first product above.'}</p>
               </div>
             )}
 
