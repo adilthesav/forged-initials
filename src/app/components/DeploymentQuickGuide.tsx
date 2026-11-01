@@ -28,7 +28,7 @@ export function DeploymentQuickGuide() {
     { 
       id: 4, 
       label: '4. Add Stripe Secret', 
-      command: 'supabase secrets set STRIPE_SECRET_KEY=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',
+      command: 'supabase secrets set STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY',
       description: 'Configures Stripe payment processing'
     },
   ];
