@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -8,18 +7,15 @@ import { ConsoleDeploymentGuide } from './components/ConsoleDeploymentGuide';
 import { DeploymentBanner } from './components/DeploymentBanner';
 import { SEOHead, SEOPresets } from './components/SEOHead';
 import { SchemaMarkup, SchemaTypes } from './components/SchemaMarkup';
-import { TestNotification } from './components/TestNotification';
 import { usePerformanceOptimization } from './hooks/usePerformanceOptimization';
 
-type Page = 'home' | 'contact' | 'faq' | 'track' | 'blog' | 'test' | 'email';
+type Page = 'home' | 'contact' | 'faq' | 'track' | 'blog';
 
 function pathToPage(pathname: string): Page {
   if (pathname === '/contact') return 'contact';
   if (pathname === '/faq') return 'faq';
   if (pathname === '/track') return 'track';
   if (pathname.startsWith('/blog')) return 'blog';
-  if (pathname === '/test') return 'test';
-  if (pathname === '/email') return 'email';
   return 'home';
 }
 
@@ -29,15 +25,12 @@ const PAGE_TO_PATH: Record<Page, string> = {
   faq: '/faq',
   track: '/track',
   blog: '/blog',
-  test: '/test',
-  email: '/email',
 };
 
 export function Root() {
   usePerformanceOptimization();
   const location = useLocation();
   const navigate = useNavigate();
-  const [showOwnerPanel, setShowOwnerPanel] = useState(false);
 
   const currentPage = pathToPage(location.pathname);
 
@@ -46,21 +39,6 @@ export function Root() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     document.documentElement.scrollTop = 0;
   };
-
-  useEffect(() => {
-    const ownerMode = localStorage.getItem('forged_owner_mode');
-    if (ownerMode === 'enabled') setShowOwnerPanel(true);
-
-    const handleOwnerToggle = () => {
-      const current = localStorage.getItem('forged_owner_mode') === 'enabled';
-      const next = !current;
-      localStorage.setItem('forged_owner_mode', next ? 'enabled' : 'disabled');
-      setShowOwnerPanel(next);
-    };
-
-    window.addEventListener('toggleOwnerMode', handleOwnerToggle);
-    return () => window.removeEventListener('toggleOwnerMode', handleOwnerToggle);
-  }, []);
 
   return (
     <div className="min-h-screen">
@@ -117,16 +95,8 @@ export function Root() {
 
       <MobileBottomNav currentPage={currentPage} onNavigate={handleNavigate} />
 
-      {currentPage !== 'test' && currentPage !== 'email' && (
-        <Footer onNavigate={handleNavigate} />
-      )}
+      <Footer onNavigate={handleNavigate} />
 
-      {showOwnerPanel && currentPage !== 'test' && currentPage !== 'email' && (
-        <TestNotification
-          onOpenFullDashboard={() => handleNavigate('test')}
-          onOpenEmailGenerator={() => handleNavigate('email')}
-        />
-      )}
     </div>
   );
 }
