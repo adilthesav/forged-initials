@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { AfterPurchaseNotice, CONFIRM_BEFORE_PAYING } from './AfterPurchaseNotice';
+import { BookCallLink } from './BookCallLink';
 
 interface PayOrder {
   orderNumber: string;
@@ -83,13 +84,16 @@ export function PayOrderPage() {
             <div className="text-center py-8">
               <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
               <h1 className="text-xl font-semibold mb-2">Thank you, payment received!</h1>
-              <p className="text-slate-600 mb-4">Order {order.orderNumber} is confirmed. We'll be in touch about your piece.</p>
+              <p className="text-slate-600 mb-1">Your order number is</p>
+              <p className="text-xl font-semibold mb-1">{order.orderNumber}</p>
+              <p className="text-slate-600 mb-4">Save it. You'll need it if you contact us. We'll be in touch about your piece.</p>
               <AfterPurchaseNotice status="paid" />
               {order.editToken && (
                 <p className="mt-3 text-sm">
                   <Link to={`/request/${order.editToken}`} className="text-blue-700 hover:underline">Need to cancel this order?</Link>
                 </p>
               )}
+              <p className="mt-3"><BookCallLink orderNumber={order.orderNumber} /></p>
             </div>
           )}
 
@@ -97,6 +101,7 @@ export function PayOrderPage() {
             <div className="py-6">
               <h1 className="text-xl font-semibold mb-3 text-center">Order {order.orderNumber}</h1>
               <AfterPurchaseNotice status={order.status} />
+              <p className="mt-3 text-center"><BookCallLink orderNumber={order.orderNumber} /></p>
             </div>
           )}
 
@@ -145,6 +150,7 @@ export function PayOrderPage() {
                 </p>
               )}
               <p className="mt-3 text-xs text-center text-slate-500">Secure payment by Stripe: card, Cash App or Link.</p>
+              <p className="mt-3 text-center"><BookCallLink orderNumber={order.orderNumber} /></p>
               {order.editToken && (
                 <p className="mt-3 text-sm text-center">
                   <Link to={`/request/${order.editToken}`} className="text-blue-700 hover:underline">Need to change something? Edit your request</Link>

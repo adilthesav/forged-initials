@@ -35,7 +35,7 @@ exports.handler = async (event) => {
 
   if (stripeEvent.type === 'checkout.session.completed') {
     const session = stripeEvent.data.object;
-    const { productId, quantity, selectedVid, orderRequestId } = session.metadata || {};
+    const { productId, quantity, selectedVid, orderRequestId, orderNumber } = session.metadata || {};
 
     // Custom orders paid through a private payment link
     if (orderRequestId) {
@@ -81,7 +81,7 @@ exports.handler = async (event) => {
       const phone = session.customer_details?.phone || '';
       const qty = parseInt(quantity || '1');
       const variantName = selectedVariant?.name || '';
-      const orderNum = `FI-${Date.now()}`;
+      const orderNum = orderNumber || `FI-${Date.now()}`;
 
       const fullAddress = [
         addr.line1,

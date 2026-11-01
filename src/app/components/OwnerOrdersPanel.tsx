@@ -52,6 +52,16 @@ const STATUS_STYLES: Record<Order['status'], string> = {
 };
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+function matchesSearch(order: Order, search: string) {
+  const term = search.trim().toLowerCase();
+  if (!term) return true;
+  const c = order.customer;
+  if ([order.orderNumber, c.name, c.email, c.phone].some((v) => (v || '').toLowerCase().includes(term))) return true;
+  // Phone numbers match however they're typed, like 832-352 or (832) 352
+  const digits = term.replace(/\D/g, '');
+  return digits.length >= 3 && (c.phone || '').replace(/\D/g, '').includes(digits);
+}
+
 function getSavedToken() {
   try { return sessionStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
 }
@@ -61,6 +71,7 @@ export function OwnerOrdersPanel() {
   const [password, setPassword] = useState('');
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   const load = async (authToken: string) => {
     setError('');
@@ -104,8 +115,17 @@ export function OwnerOrdersPanel() {
     <section className="pt-28 pb-20 px-4 min-h-screen bg-slate-50">
       <div className="max-w-3xl mx-auto space-y-4">
         <h1 className="text-2xl font-semibold">Order requests</h1>
+        {orders.length > 0 && (
+          <input type="search" aria-label="Search orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by order number, name, email or phone" className="w-full border rounded-lg px-3 py-2 bg-white" />
+        )}
         {orders.length === 0 && <p className="text-slate-500">No requests yet.</p>}
-        {orders.map((order) => <OrderCard key={order.id} order={order} token={token} onChange={replace} />)}
+        {orders.length > 0 && !orders.some((o) => matchesSearch(o, search)) && <p className="text-slate-500">No orders match that search.</p>}
+        {/* Hidden rather than removed, so searching doesn't lose unsaved edits */}
+        {orders.map((order) => (
+          <div key={order.id} hidden={!matchesSearch(order, search)}>
+            <OrderCard order={order} token={token} onChange={replace} />
+          </div>
+        ))}
       </div>
     </section>
   );
