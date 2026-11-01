@@ -8,6 +8,8 @@ const PREFIX = 'order_request:';
 const LINK_DAYS = 7;
 const SHIPPING_CENTS = 1000;
 const STRIPE_MIN_CENTS = 50;
+// Once an order reaches one of these, its payment is settled and its details are locked
+const AFTER_PAYMENT = ['paid', 'shipped', 'refunded'];
 
 // Prices are always set here on the server, never taken from the browser
 const LETTER_CENTS = { 'extra-small': 100, small: 200, medium: 300, large: 400, 'extra-large': 500 };
@@ -186,7 +188,7 @@ async function stripe(path, { form, method = form ? 'POST' : 'GET', idempotencyK
 
 // Marks the order paid once, however many times a webhook or page load reports it.
 async function markPaid(order, session) {
-  if (order.status === 'paid') return order;
+  if (AFTER_PAYMENT.includes(order.status)) return order;
   const paid = await saveOrder({
     ...order,
     status: 'paid',
@@ -211,7 +213,7 @@ function formatStripeAddress({ name, address: a }) {
 
 // Checks the order's Stripe session, so a payment is noticed even if a webhook is missed.
 async function reconcile(order) {
-  if (!order.stripeSessionId || order.status === 'paid') return { order, session: null };
+  if (!order.stripeSessionId || AFTER_PAYMENT.includes(order.status)) return { order, session: null };
   const session = await stripe(`checkout/sessions/${encodeURIComponent(order.stripeSessionId)}`);
   if (session.payment_status === 'paid') return { order: await markPaid(order, session), session };
   return { order, session };
@@ -335,7 +337,7 @@ async function saveCallRequest(callId, caller, request) {
 
 module.exports = {
   parseCallLines,
-  LINK_DAYS, STRIPE_MIN_CENTS, EDIT_OPTIONS, json, clean, normalizeItems, normalizeCustomer, customerError, priceOrder, payUrl, editUrl, siteUrl,
+  LINK_DAYS, STRIPE_MIN_CENTS, AFTER_PAYMENT, EDIT_OPTIONS, json, clean, normalizeItems, normalizeCustomer, customerError, priceOrder, payUrl, editUrl, siteUrl,
   getOrder, getOrderByToken, getOrderByEditToken, listOrders, saveOrder, telegram, esc, dollars, stripe, markPaid, reconcile, closeCheckout,
   describeChanges, newToken, newId, saveCallRequest,
 };

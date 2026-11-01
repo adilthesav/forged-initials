@@ -15,7 +15,7 @@ interface CustomerEdit {
 interface Order {
   id: string;
   orderNumber: string;
-  status: 'requested' | 'approved' | 'paid' | 'cancelled';
+  status: 'requested' | 'approved' | 'paid' | 'shipped' | 'refunded' | 'cancelled';
   createdAt: string;
   updatedAt: string;
   customer: { name: string; email: string; phone: string; addressLine1: string; addressLine2: string; city: string; state: string; postalCode: string };
@@ -33,6 +33,10 @@ interface Order {
   editUrl: string | null;
   customerEdits?: CustomerEdit[];
   editsUnreviewed?: boolean;
+  confirmedAt?: string;
+  cancelRequestedAt?: string;
+  refundedCents?: number;
+  refundReason?: string;
 }
 
 const ENDPOINT = '/.netlify/functions/admin-orders';
@@ -42,6 +46,8 @@ const STATUS_STYLES: Record<Order['status'], string> = {
   requested: 'bg-amber-100 text-amber-800',
   approved: 'bg-blue-100 text-blue-800',
   paid: 'bg-green-100 text-green-800',
+  shipped: 'bg-purple-100 text-purple-800',
+  refunded: 'bg-slate-200 text-slate-600',
   cancelled: 'bg-slate-200 text-slate-600',
 };
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -155,6 +161,14 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
     if (saved) await act('approve', { expectedUpdatedAt: saved.updatedAt });
   };
   const reopen = () => { if (window.confirm('The current payment link will stop working. Continue?')) act('reopen'); };
+  const ship = () => {
+    const warning = order.cancelRequestedAt ? 'The customer asked to cancel this order. ' : '';
+    if (window.confirm(`${warning}Mark ${order.orderNumber} as shipped? The customer will no longer be able to cancel it.`)) act('ship');
+  };
+  const refund = () => {
+    const what = order.status === 'shipped' ? 'Only do this once you have received the return. ' : 'This cancels the order. ';
+    if (window.confirm(`${what}Refund ${order.orderNumber} in full through Stripe? This can't be undone.`)) act('refund');
+  };
   const cancel = () => { if (window.confirm(`Cancel order ${order.orderNumber}?`)) act('cancel'); };
   const copy = async (link: string | null) => {
     if (!link) return;
@@ -182,6 +196,14 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
           {order.notes && <p className="mt-2 p-2 bg-slate-100 rounded">{order.notes}</p>}
           {order.customerNotes && <p className="mt-2 p-2 bg-slate-100 rounded"><span className="font-medium">Customer's note:</span> {order.customerNotes}</p>}
         </div>
+
+        {order.status === 'paid' && order.cancelRequestedAt && (
+          <p className="rounded-lg p-3 text-sm font-semibold bg-red-50 border border-red-300 text-red-800">
+            The customer asked to cancel on {new Date(order.cancelRequestedAt).toLocaleString()}. Don't ship this until you've decided.
+          </p>
+        )}
+        {order.confirmedAt && <p className="text-xs text-slate-500">Customer confirmed the no-changes terms on {new Date(order.confirmedAt).toLocaleString()}.</p>}
+        {order.status === 'refunded' && <p className="text-sm text-slate-600">Refunded {money(order.refundedCents || 0)}{order.refundReason === 'returned' ? ' after a return.' : ' after cancellation.'}</p>}
 
         <CustomerEdits edits={order.customerEdits || []} unreviewed={!!order.editsUnreviewed} busy={busy} onReviewed={() => act('reviewed')} />
 
@@ -244,6 +266,13 @@ function OrderCard({ order, token, onChange }: { order: Order; token: string; on
           {order.status === 'approved' && <Button type="button" disabled={busy} variant="outline" onClick={reopen}>Reopen to edit</Button>}
           {(editable || order.status === 'approved') && <Button type="button" disabled={busy} variant="outline" onClick={cancel}>Cancel order</Button>}
         </div>
+        {order.status === 'paid' && (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" disabled={busy} onClick={ship}>Mark as shipped</Button>
+            <Button type="button" disabled={busy} variant="outline" onClick={refund}>Cancel and refund</Button>
+          </div>
+        )}
+        {order.status === 'shipped' && <Button type="button" disabled={busy} variant="outline" onClick={refund}>Return received: refund</Button>}
         {message && <p className="text-sm text-slate-600">{message}</p>}
       </CardContent>
     </Card>

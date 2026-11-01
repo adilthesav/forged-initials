@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { AfterPurchaseNotice, CONFIRM_BEFORE_PAYING } from './AfterPurchaseNotice';
 
 interface PayOrder {
   orderNumber: string;
@@ -21,6 +22,7 @@ interface PayOrder {
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const ENDPOINT = '/.netlify/functions/order-pay';
+const AFTER_PAYMENT = ['paid', 'shipped', 'refunded'];
 
 export function PayOrderPage() {
   const { token } = useParams();
@@ -28,6 +30,7 @@ export function PayOrderPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     // Private links shouldn't show up in search results
@@ -53,7 +56,7 @@ export function PayOrderPage() {
     setPaying(true);
     setError('');
     try {
-      const r = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+      const r = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, confirmed }) });
       const data = await r.json();
       if (!r.ok || !data.url) throw new Error(data.error || 'Could not start checkout.');
       window.location.href = data.url;
@@ -80,11 +83,24 @@ export function PayOrderPage() {
             <div className="text-center py-8">
               <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
               <h1 className="text-xl font-semibold mb-2">Thank you, payment received!</h1>
-              <p className="text-slate-600">Order {order.orderNumber} is confirmed. We'll be in touch about your piece.</p>
+              <p className="text-slate-600 mb-4">Order {order.orderNumber} is confirmed. We'll be in touch about your piece.</p>
+              <AfterPurchaseNotice status="paid" />
+              {order.editToken && (
+                <p className="mt-3 text-sm">
+                  <Link to={`/request/${order.editToken}`} className="text-blue-700 hover:underline">Need to cancel this order?</Link>
+                </p>
+              )}
             </div>
           )}
 
-          {order && order.status !== 'paid' && (
+          {order && ['shipped', 'refunded'].includes(order.status) && (
+            <div className="py-6">
+              <h1 className="text-xl font-semibold mb-3 text-center">Order {order.orderNumber}</h1>
+              <AfterPurchaseNotice status={order.status} />
+            </div>
+          )}
+
+          {order && !AFTER_PAYMENT.includes(order.status) && (
             <>
               <h1 className="text-2xl font-semibold mb-1">Review your order</h1>
               <p className="text-sm text-slate-500 mb-6">Order {order.orderNumber} for {order.name}</p>
@@ -114,9 +130,15 @@ export function PayOrderPage() {
               {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
               {order.status === 'approved' && !order.expired ? (
-                <Button onClick={pay} disabled={paying} className="w-full mt-6" size="lg">
-                  {paying ? 'Opening secure checkout…' : `I'm happy with this, pay ${money(order.totalCents)}`}
-                </Button>
+                <>
+                  <label className="mt-6 flex gap-3 items-start text-sm text-slate-800 bg-amber-50 border border-amber-300 rounded-lg p-3 cursor-pointer">
+                    <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5 w-4 h-4 flex-shrink-0" />
+                    <span>{CONFIRM_BEFORE_PAYING}</span>
+                  </label>
+                  <Button onClick={pay} disabled={paying || !confirmed} className="w-full mt-4" size="lg">
+                    {paying ? 'Opening secure checkout…' : `Confirm and pay ${money(order.totalCents)}`}
+                  </Button>
+                </>
               ) : (
                 <p className="mt-6 text-sm text-amber-800 bg-amber-50 rounded-lg p-3">
                   This payment link is no longer active. Please contact us and we'll send you a new one.

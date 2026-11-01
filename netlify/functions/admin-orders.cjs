@@ -2,7 +2,7 @@
 const crypto = require('crypto');
 const {
   LINK_DAYS, STRIPE_MIN_CENTS, json, clean, normalizeItems, priceOrder, payUrl, editUrl, getOrder, listOrders, saveOrder,
-  newToken, closeCheckout,
+  newToken, closeCheckout, stripe,
 } = require('../lib/orders.cjs');
 
 function isAuthorized(headers, secret) {
@@ -68,6 +68,32 @@ exports.handler = async (event) => {
 
     if (body.action === 'reviewed') {
       return json(200, { order: present(await saveOrder({ ...order, editsUnreviewed: false })) });
+    }
+
+    if (body.action === 'ship') {
+      if (order.status !== 'paid') return json(409, { error: 'Only a paid order can be marked as shipped.' });
+      return json(200, { order: present(await saveOrder({ ...order, status: 'shipped', shippedAt: new Date().toISOString() })) });
+    }
+
+    // Refunds a cancelled order before it ships, or a returned order after it has
+    if (body.action === 'refund') {
+      if (!['paid', 'shipped'].includes(order.status)) return json(409, { error: `This order is ${order.status}, so it can't be refunded here.` });
+      if (!order.paymentIntent) return json(409, { error: 'No Stripe payment is linked to this order. Refund it in Stripe.' });
+      let refund;
+      try {
+        refund = await stripe('refunds', { form: new URLSearchParams({ payment_intent: order.paymentIntent }), idempotencyKey: `refund-${order.id}` });
+      } catch (err) {
+        console.error('⚠️ Refund failed:', err.message);
+        return json(502, { error: `Stripe could not refund this: ${err.message}` });
+      }
+      return json(200, { order: present(await saveOrder({
+        ...order,
+        status: 'refunded',
+        refundId: refund.id,
+        refundedCents: refund.amount,
+        refundedAt: new Date().toISOString(),
+        refundReason: order.status === 'shipped' ? 'returned' : 'cancelled',
+      })) });
     }
 
     if (body.action === 'reopen' || body.action === 'cancel') {

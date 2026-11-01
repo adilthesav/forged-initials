@@ -1,5 +1,5 @@
 // Public, but only with a private link: shows one approved order and starts its checkout.
-const { json, priceOrder, siteUrl, getOrderByToken, saveOrder, stripe, reconcile } = require('../lib/orders.cjs');
+const { AFTER_PAYMENT, json, priceOrder, siteUrl, getOrderByToken, saveOrder, stripe, reconcile } = require('../lib/orders.cjs');
 
 function publicView(order) {
   const price = priceOrder(order);
@@ -16,7 +16,7 @@ function publicView(order) {
     adjustmentCents: price.adjustmentCents,
     adjustmentNote: order.adjustmentNote || '',
     totalCents: price.totalCents,
-    editToken: order.status === 'approved' ? order.editToken || null : null,
+    editToken: ['approved', 'paid'].includes(order.status) ? order.editToken || null : null,
   };
 }
 
@@ -49,7 +49,7 @@ async function startCheckout(order) {
 
   // Double clicks reuse one session instead of opening two
   const session = await stripe('checkout/sessions', { form, idempotencyKey: `order-${latest.payToken}-${attempts}` });
-  await saveOrder({ ...latest, stripeSessionId: session.id, stripeAttempts: attempts });
+  await saveOrder({ ...latest, stripeSessionId: session.id, stripeAttempts: attempts, confirmedAt: new Date().toISOString() });
   return { order: latest, url: session.url };
 }
 
@@ -66,9 +66,12 @@ exports.handler = async (event) => {
       return json(200, { order: publicView(order) });
     }
 
+    if (found.status === 'approved' && JSON.parse(event.body || '{}').confirmed !== true) {
+      return json(400, { error: 'Please confirm your order details before paying.' });
+    }
     if (isExpired(found)) return json(410, { error: 'This payment link has expired. Please contact us for a new one.' });
     const { order, url } = await startCheckout(found);
-    if (!url) return json(409, { order: publicView(order), error: order.status === 'paid' ? 'This order is already paid.' : 'This order is not ready for payment.' });
+    if (!url) return json(409, { order: publicView(order), error: AFTER_PAYMENT.includes(order.status) ? 'This order is already paid.' : 'This order is not ready for payment.' });
     return json(200, { url });
   } catch (err) {
     console.error('⚠️ order-pay error:', err.message);

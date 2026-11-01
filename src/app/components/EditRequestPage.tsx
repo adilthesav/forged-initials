@@ -3,6 +3,7 @@ import { useParams } from 'react-router';
 import { CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { AfterPurchaseNotice } from './AfterPurchaseNotice';
 
 interface Letter { letter: string; size: string; quantity: number }
 interface Part { size: string; quantity: number }
@@ -12,6 +13,7 @@ interface EditableOrder {
   status: string;
   editable: boolean;
   phoneOrder?: boolean;
+  cancelRequested?: boolean;
   updatedAt?: string;
   customer: { name: string; email: string; phone: string; addressLine1: string; addressLine2: string; city: string; state: string; postalCode: string };
   notes: string;
@@ -103,6 +105,22 @@ export function EditRequestPage() {
     if (saved || error) resultRef.current?.scrollIntoView({ block: 'center' });
   }, [saved, error]);
 
+  const requestCancel = async () => {
+    if (!window.confirm(`Ask us to cancel order ${order?.orderNumber}? To make changes afterward, you'd need to place a new request.`)) return;
+    setSaving(true);
+    setError('');
+    try {
+      const r = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, action: 'request-cancel' }) });
+      const data = await r.json();
+      if (data.order) setOrder(data.order);
+      if (!r.ok) throw new Error(data.error || 'Could not send your request.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send your request.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [key]: e.target.value });
   const subtotal = order?.editable
     ? letters.reduce((sum, l) => sum + centsFor(order.options.letterSizes, l.size) * (l.quantity || 0), 0)
@@ -126,10 +144,14 @@ export function EditRequestPage() {
           {order && !order.editable && (
             <div className="text-center py-8">
               {order.status === 'paid' && <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />}
-              <h1 className="text-xl font-semibold mb-2">Order {order.orderNumber} can't be edited here</h1>
-              <p className="text-slate-600">
-                {order.status === 'paid' ? 'It has already been paid. Please contact us if something needs to change.' : 'This request was cancelled. Please contact us if you have questions.'}
-              </p>
+              <h1 className="text-xl font-semibold mb-3">Order {order.orderNumber} can't be edited</h1>
+              <AfterPurchaseNotice status={order.status} />
+              {order.status === 'paid' && (order.cancelRequested ? (
+                <p className="mt-4 text-sm text-green-700 bg-green-50 rounded-lg p-3">We received your cancellation request. We'll review it and contact you about your refund.</p>
+              ) : (
+                <Button type="button" variant="outline" disabled={saving} className="w-full mt-4" onClick={requestCancel}>Request to cancel this order</Button>
+              ))}
+              {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
             </div>
           )}
 
