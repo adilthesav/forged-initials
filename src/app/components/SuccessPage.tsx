@@ -20,6 +20,10 @@ export function SuccessPage() {
             You'll receive an order confirmation email shortly with your order details and tracking information once your item ships.
           </p>
         </div>
+
+        <p className="text-sm text-muted-foreground mb-6">
+          Your order can't be changed now that it's paid. To change it, contact us to cancel before it ships, then place a new order. Once it ships, a refund requires returning it to the address we give you.
+        </p>
         
         <div className="space-y-3">
           <Button 

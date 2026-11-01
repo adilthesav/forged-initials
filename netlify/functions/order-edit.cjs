@@ -11,7 +11,7 @@ const editable = (order) => ['requested', 'approved'].includes(order.status);
 const notesField = (order) => (order.source === 'phone' ? 'customerNotes' : 'notes');
 
 function publicView(order) {
-  if (!editable(order)) return { orderNumber: order.orderNumber, status: order.status, editable: false };
+  if (!editable(order)) return { orderNumber: order.orderNumber, status: order.status, editable: false, cancelRequested: Boolean(order.cancelRequestedAt) };
   const price = priceOrder(order);
   return {
     orderNumber: order.orderNumber,
@@ -43,6 +43,22 @@ function notifyOwner(order, entry) {
   );
 }
 
+// A paid order can't be edited, only cancelled before it ships. The owner makes the final call and issues the refund.
+async function requestCancel(found) {
+  const { order } = await reconcile(found);
+  if (order.status !== 'paid') {
+    return json(409, { error: order.status === 'shipped' ? 'This order has already shipped, so it can no longer be cancelled.' : 'This order can\'t be cancelled here.', order: publicView(order) });
+  }
+  if (order.cancelRequestedAt) return json(200, { order: publicView(order) });
+  const saved = await saveOrder({ ...order, cancelRequestedAt: new Date().toISOString() });
+  await telegram(
+    `🛑 <b>CANCEL REQUEST: ${esc(order.orderNumber)}</b>\n\n` +
+    `👤 ${esc(order.customer.name)}\n💵 Paid ${dollars(order.paidCents || 0)}\n\n` +
+    `Don't ship it yet. Review it at forged-initials.com/admin-orders`
+  );
+  return json(200, { order: publicView(saved) });
+}
+
 exports.handler = async (event) => {
   if (!['GET', 'POST'].includes(event.httpMethod)) return json(405, { error: 'Method not allowed' });
 
@@ -56,6 +72,8 @@ exports.handler = async (event) => {
       const { order } = await reconcile(found);
       return json(200, { order: publicView(order) });
     }
+
+    if (body.action === 'request-cancel') return await requestCancel(found);
 
     if (!editable(found)) return json(409, { error: `This order is already ${found.status}, so it can't be changed here.`, order: publicView(found) });
     if (body.expectedUpdatedAt !== found.updatedAt) {

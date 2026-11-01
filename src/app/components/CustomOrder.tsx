@@ -1347,7 +1347,10 @@ export function CustomOrder() {
                   </div>
                   <div className="px-5 py-4 space-y-3">
                     <p className="text-sm text-stone-600 leading-relaxed">
-                      If you paid unintentionally, by mistake, or for any reason you'd like a refund — please reach out right away. We'll gladly attempt to issue your refund as soon as possible with no questions asked.
+                      If you paid unintentionally, by mistake, or for any reason you'd like a refund — please reach out right away, before your order ships. We'll gladly attempt to issue your refund as soon as possible with no questions asked.
+                    </p>
+                    <p className="text-sm text-stone-600 leading-relaxed">
+                      <strong>After you pay, your order can't be changed.</strong> To change it, you'd need to cancel it before it ships and place a new request. Once it's on its way, it can't be cancelled: to get a refund, contact us for the correct return address and send it back there. We'll refund it once we receive it.
                     </p>
 
                     <div className="flex gap-2.5 bg-stone-50 border border-stone-200 rounded-xl p-3">
