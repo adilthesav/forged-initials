@@ -188,17 +188,24 @@ function newId() {
   return crypto.randomBytes(6).toString('hex');
 }
 
+// Vapi's form sends items as text, like "S, Medium, 2; J, Large, 1"
+function parseCallLines(value, keys) {
+  if (Array.isArray(value)) return value;
+  return String(value ?? '').split(';').map((line) => line.split(',').map((part) => part.trim())).filter((parts) => parts[0])
+    .map((parts) => Object.fromEntries(keys.map((key, i) => [key, parts[i] || undefined])));
+}
+
 // Turns what the phone AI heard into order lines, skipping anything unclear for the owner to confirm.
 function itemsFromCall(request) {
   const letters = [];
   const bails = [];
   const prongs = [];
-  for (const l of Array.isArray(request?.letters) ? request.letters : []) {
+  for (const l of parseCallLines(request?.letters, ['letter', 'size', 'quantity'])) {
     const size = String(l?.size ?? 'medium').toLowerCase().trim().replace(/\s+/g, '-');
     const line = normalizeItems({ letters: [{ letter: l?.letter, size, quantity: l?.quantity ?? 1 }] });
     if (line) letters.push(...line.letters);
   }
-  for (const p of Array.isArray(request?.parts) ? request.parts : []) {
+  for (const p of parseCallLines(request?.parts, ['item', 'size', 'quantity'])) {
     const item = String(p?.item ?? '').toLowerCase();
     const quantity = p?.quantity ?? 1;
     if (item.includes('prong')) {
@@ -245,6 +252,7 @@ async function saveCallRequest(callId, caller, request) {
 }
 
 module.exports = {
+  parseCallLines,
   LINK_DAYS, STRIPE_MIN_CENTS, json, clean, normalizeItems, priceOrder, payUrl, siteUrl, getOrder, getOrderByToken,
   listOrders, saveOrder, telegram, esc, dollars, stripe, markPaid, reconcile, newToken, newId, saveCallRequest,
 };
