@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getAdminToken, verifyAdminPassword } from '../utils/adminAuth';
 import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, RefreshCw, Package, Search, ShoppingBag, Download, Type } from 'lucide-react';
 
 // ── Personalization config (shared with ShopSection via localStorage) ─────────
@@ -73,12 +74,10 @@ const BLANK: Product = {
   quantity_remaining: 1, active: true,
 };
 
-const ADMIN_TOKEN = 'forgedadmin2026';
-
 async function adminFetch(method: string, body?: object) {
   const res = await fetch('/.netlify/functions/admin-products', {
     method,
-    headers: { 'Content-Type': 'application/json', 'x-admin-token': ADMIN_TOKEN },
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': getAdminToken() },
     body: body ? JSON.stringify(body) : undefined,
   });
   return res.json();
@@ -87,7 +86,7 @@ async function adminFetch(method: string, body?: object) {
 async function cjFetch(action: string, extra: object = {}) {
   const res = await fetch('/.netlify/functions/cj-products', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-admin-token': ADMIN_TOKEN },
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': getAdminToken() },
     body: JSON.stringify({ action, ...extra }),
   });
   return res.json();
@@ -879,6 +878,37 @@ function PersonalizationPanel() {
 
 // ── Main panel ───────────────────────────────────────────────────────────────
 export function OwnerProductPanel() {
+  const [authed, setAuthed] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const saved = getAdminToken();
+    if (saved) verifyAdminPassword(saved).then(setAuthed);
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = await verifyAdminPassword(password);
+    setAuthed(ok);
+    setError(!ok);
+    if (!ok) setPassword('');
+  };
+
+  if (authed) return <ProductPanel />;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
+      <form onSubmit={submit} className="bg-white rounded-2xl shadow p-8 w-full max-w-sm space-y-3">
+        <h1 className="text-xl font-semibold">Owner sign in</h1>
+        <input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Admin password" className="w-full border rounded-lg px-3 py-2" />
+        <button type="submit" className="w-full bg-stone-900 text-white rounded-lg py-2 font-semibold">Open</button>
+        {error && <p className="text-red-500 text-sm">Incorrect password.</p>}
+      </form>
+    </div>
+  );
+}
+
+function ProductPanel() {
   const [tab, setTab] = useState<'products' | 'cj' | 'personalization'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

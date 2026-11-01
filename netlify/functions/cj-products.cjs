@@ -1,5 +1,4 @@
 const SUPABASE_URL = 'https://vpxuizymtmcnsgmpnhel.supabase.co';
-const ADMIN_TOKEN = 'forgedadmin2026';
 
 function extractImageUrl(raw) {
   if (!raw) return '';
@@ -46,7 +45,9 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  if (event.headers['x-admin-token'] !== ADMIN_TOKEN) {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken) return { statusCode: 500, headers: cors, body: JSON.stringify({ error: 'Not configured' }) };
+  if (event.headers['x-admin-token'] !== adminToken) {
     return { statusCode: 401, headers: cors, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
