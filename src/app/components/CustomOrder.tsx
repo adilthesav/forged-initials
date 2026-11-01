@@ -59,6 +59,7 @@ export function CustomOrder() {
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [requestNumber, setRequestNumber] = useState('');
+  const [requestEditUrl, setRequestEditUrl] = useState('');
   const [sendingRequest, setSendingRequest] = useState(false);
   const [website, setWebsite] = useState(''); // Hidden field that only bots fill in
   const [processingPayment, setProcessingPayment] = useState(false);
@@ -302,6 +303,7 @@ export function CustomOrder() {
       if (!response.ok) throw new Error(data.error);
       localStorage.removeItem('forged_order_state');
       setRequestNumber(data.orderNumber);
+      setRequestEditUrl(data.editUrl || '');
       window.scrollTo({ top: document.getElementById('custom-orders')?.offsetTop ?? 0 });
     } catch (error) {
       alert(error instanceof Error && error.message ? error.message : 'Something went wrong. Please try again or message us.');
@@ -406,6 +408,12 @@ export function CustomOrder() {
             <h2 className="text-2xl font-semibold mb-2">We got your request!</h2>
             <p className="text-slate-600 mb-2">Your request number is <strong>{requestNumber}</strong>. Nothing has been charged.</p>
             <p className="text-slate-600">We'll reach out to confirm your design. Once you're happy with every detail, we'll send you a private link to pay.</p>
+            {requestEditUrl && (
+              <div className="mt-5 pt-5 border-t">
+                <a href={requestEditUrl} className="inline-block font-semibold text-blue-700 hover:underline">Need to change something? Edit your request</a>
+                <p className="text-xs text-slate-500 mt-1">Bookmark this private link. Anyone who has it can see and change your request.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>

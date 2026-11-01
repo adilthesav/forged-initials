@@ -49,6 +49,36 @@ function normalizeItems({ letters = [], bails = [], prongs = [] }) {
   return out;
 }
 
+// What a customer can choose when editing, using the same prices as the server
+const EDIT_OPTIONS = {
+  letterSizes: Object.entries(LETTER_CENTS).map(([value, cents]) => ({ value, label: value.replace('-', ' '), cents })),
+  bails: Object.entries(BAIL_CENTS).map(([value, cents]) => ({ value, label: value.toUpperCase(), cents })),
+  prongs: Object.entries(PRONG_CENTS).map(([value, cents]) => ({ value, label: PRONG_LABELS[value], cents })),
+};
+
+// Reads the same contact fields the custom order form sends
+function normalizeCustomer(body) {
+  return {
+    name: clean(body.customerName, 100),
+    email: clean(body.email, 200).toLowerCase(),
+    phone: clean(body.phoneNumber, 30),
+    addressLine1: clean(body.addressLine1, 150),
+    addressLine2: clean(body.addressLine2, 150),
+    city: clean(body.city, 80),
+    state: clean(body.stateOrProvinceCode, 2).toUpperCase(),
+    postalCode: clean(body.postalCode, 12),
+  };
+}
+
+// Phone orders may have no email or address yet, since Stripe collects the address at checkout.
+function customerError(customer, { phoneOrder = false } = {}) {
+  if (!customer.name) return 'Please enter your name.';
+  if ((!phoneOrder || customer.email) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customer.email)) return 'Please enter your name and a valid email.';
+  if (phoneOrder && !customer.addressLine1) return null;
+  if (!customer.addressLine1 || !customer.city || !/^[A-Z]{2}$/.test(customer.state) || !customer.postalCode) return 'Please enter your full U.S. shipping address.';
+  return null;
+}
+
 function priceOrder(order) {
   const lines = [
     ...order.letters.map((l) => ({ label: `${l.letter}, ${l.size.replace('-', ' ')}`, quantity: l.quantity, cents: LETTER_CENTS[l.size] * l.quantity })),
@@ -69,6 +99,10 @@ function payUrl(order) {
   return order.payToken ? `${siteUrl()}/pay/${order.payToken}` : null;
 }
 
+function editUrl(order) {
+  return order.editToken ? `${siteUrl()}/request/${order.editToken}` : null;
+}
+
 function kvHeaders(extra = {}) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra };
@@ -86,11 +120,14 @@ async function getOrder(id) {
   return rows[0]?.value || null;
 }
 
-async function getOrderByToken(token) {
+async function getOrderByField(field, token) {
   if (!/^[A-Za-z0-9_-]{22}$/.test(String(token))) return null;
-  const rows = await kvRows(`key=like.${PREFIX}*&value->>payToken=eq.${token}&select=value`);
+  const rows = await kvRows(`key=like.${PREFIX}*&value->>${field}=eq.${token}&select=value`);
   return rows[0]?.value || null;
 }
+
+const getOrderByToken = (token) => getOrderByField('payToken', token);
+const getOrderByEditToken = (token) => getOrderByField('editToken', token);
 
 async function listOrders() {
   const rows = await kvRows(`key=like.${PREFIX}*&select=value`);
@@ -180,6 +217,50 @@ async function reconcile(order) {
   return { order, session };
 }
 
+// Stops an unpaid checkout so an old link can't be paid after the order changes.
+// If the customer already paid, reconcile marks it paid and it comes back as { paid }.
+async function closeCheckout(order) {
+  const { order: latest, session } = await reconcile(order);
+  if (latest.status === 'paid') return { paid: latest };
+  if (session?.status === 'open') await stripe(`checkout/sessions/${encodeURIComponent(session.id)}/expire`, { method: 'POST' });
+  return { order: latest };
+}
+
+const addressText = (c) => [c.addressLine1, c.addressLine2, c.city, [c.state, c.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+const letterText = (l) => `${l.letter} ${l.size.replace('-', ' ')} ×${l.quantity}`;
+const bailText = (b) => `${b.size.toUpperCase()} bail ×${b.quantity}`;
+const prongText = (p) => `${PRONG_LABELS[p.size]} prong ×${p.quantity}`;
+
+// Lines in `from` that aren't in `to`, counting repeats, so reordering isn't a change
+function missingLines(from, to) {
+  const rest = [...to];
+  return from.filter((line) => {
+    const i = rest.indexOf(line);
+    if (i === -1) return true;
+    rest.splice(i, 1);
+    return false;
+  });
+}
+
+// A plain list of what changed, for the owner. Item lists only show the lines that differ.
+function describeChanges(before, after, notesKey) {
+  const changes = [];
+  const scalar = (field, a, b) => { if (a !== b) changes.push({ field, before: a, after: b }); };
+  scalar('Name', before.customer.name, after.customer.name);
+  scalar('Email', before.customer.email, after.customer.email);
+  scalar('Phone', before.customer.phone, after.customer.phone);
+  scalar('Shipping address', addressText(before.customer), addressText(after.customer));
+  for (const [field, key, text] of [['Letters', 'letters', letterText], ['Bails', 'bails', bailText], ['Prongs', 'prongs', prongText]]) {
+    const was = before[key].map(text);
+    const now = after[key].map(text);
+    const removed = missingLines(was, now);
+    const added = missingLines(now, was);
+    if (removed.length || added.length) changes.push({ field, before: removed.join(', '), after: added.join(', ') });
+  }
+  scalar('Notes', before[notesKey] || '', after[notesKey] || '');
+  return changes;
+}
+
 function newToken() {
   return crypto.randomBytes(16).toString('base64url');
 }
@@ -234,6 +315,7 @@ async function saveCallRequest(callId, caller, request) {
     orderNumber: `FI-${id.slice(0, 6).toUpperCase()}`,
     status: 'requested',
     source: 'phone',
+    editToken: newToken(),
     createdAt: new Date().toISOString(),
     customer: {
       name: clean(request.caller_name, 100) || 'Phone caller',
@@ -253,6 +335,7 @@ async function saveCallRequest(callId, caller, request) {
 
 module.exports = {
   parseCallLines,
-  LINK_DAYS, STRIPE_MIN_CENTS, json, clean, normalizeItems, priceOrder, payUrl, siteUrl, getOrder, getOrderByToken,
-  listOrders, saveOrder, telegram, esc, dollars, stripe, markPaid, reconcile, newToken, newId, saveCallRequest,
+  LINK_DAYS, STRIPE_MIN_CENTS, EDIT_OPTIONS, json, clean, normalizeItems, normalizeCustomer, customerError, priceOrder, payUrl, editUrl, siteUrl,
+  getOrder, getOrderByToken, getOrderByEditToken, listOrders, saveOrder, telegram, esc, dollars, stripe, markPaid, reconcile, closeCheckout,
+  describeChanges, newToken, newId, saveCallRequest,
 };

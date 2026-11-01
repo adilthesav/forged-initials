@@ -16,6 +16,7 @@ function publicView(order) {
     adjustmentCents: price.adjustmentCents,
     adjustmentNote: order.adjustmentNote || '',
     totalCents: price.totalCents,
+    editToken: order.status === 'approved' ? order.editToken || null : null,
   };
 }
 

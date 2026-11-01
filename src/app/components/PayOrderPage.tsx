@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -16,6 +16,7 @@ interface PayOrder {
   adjustmentCents: number;
   adjustmentNote: string;
   totalCents: number;
+  editToken: string | null;
 }
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -122,6 +123,11 @@ export function PayOrderPage() {
                 </p>
               )}
               <p className="mt-3 text-xs text-center text-slate-500">Secure payment by Stripe: card, Cash App or Link.</p>
+              {order.editToken && (
+                <p className="mt-3 text-sm text-center">
+                  <Link to={`/request/${order.editToken}`} className="text-blue-700 hover:underline">Need to change something? Edit your request</Link>
+                </p>
+              )}
             </>
           )}
         </CardContent>
