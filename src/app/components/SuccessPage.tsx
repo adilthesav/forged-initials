@@ -41,7 +41,7 @@ export function SuccessPage() {
           </Button>
           
           <Button 
-            onClick={() => window.location.href = '/#custom-order'}
+            onClick={() => window.location.href = '/#custom-orders'}
             variant="outline"
             className="w-full"
           >
